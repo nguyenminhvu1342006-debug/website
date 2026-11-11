@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { Select, Button, Avatar, message, Spin, Empty } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { Calendar } from 'antd'; 
@@ -36,7 +36,7 @@ const BookAppointment = ({ preSelectedDoctor }) => {
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const response = await axios.get('http://127.0.0.1:8000/api/doctors/');
+        const response = await api.get('doctors/');
         const doctorsData = response.data;
         setAllDoctors(doctorsData);
         
@@ -68,7 +68,7 @@ const BookAppointment = ({ preSelectedDoctor }) => {
     setSelectedTime(''); // Reset lại giờ khi đổi ngày
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await axios.get(`http://127.0.0.1:8000/api/slots/`, {
+      const response = await api.get(`slots/`, {
         params: { doctor: selectedDoctor, date: formattedDate },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -91,7 +91,7 @@ const BookAppointment = ({ preSelectedDoctor }) => {
     setIsBooking(true);
     try {
       const token = localStorage.getItem('accessToken');
-      await axios.post(`http://127.0.0.1:8000/api/book/`, {
+      await api.post(`book/`, {
         doctor: selectedDoctor,
         date: formattedDate,
         time: selectedTime

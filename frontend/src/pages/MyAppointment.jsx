@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { CalendarOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
 import { Spin, message, Button, Popconfirm, Avatar } from 'antd';
 
@@ -15,7 +15,7 @@ const MyAppointment = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await axios.get(`http://127.0.0.1:8000/api/my-appointments/?status=${status}`, {
+      const response = await api.get(`my-appointments/?status=${status}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAppointments(response.data);
@@ -34,7 +34,7 @@ const MyAppointment = () => {
   const handleCancel = async (id) => {
     try {
       const token = localStorage.getItem('accessToken');
-      await axios.post(`http://127.0.0.1:8000/api/cancel/${id}/`, {}, {
+      await api.post(`cancel/${id}/`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       message.success('Đã hủy lịch hẹn thành công!');

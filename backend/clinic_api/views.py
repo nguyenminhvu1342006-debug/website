@@ -1,3 +1,5 @@
+from django.db import transaction
+from .serializers import PatientProfileSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -227,41 +229,32 @@ class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-        data = {
-            "id": f"A{user.id:07d}",
-            "full_name": user.get_full_name() or user.username,
-            "date_of_birth": getattr(user, 'date_of_birth', 'Feb 20, 1975'),
-            "phone": getattr(user, 'phone', ''),
-            "address": getattr(user, 'address', ''),
-            "blood_type": getattr(user, 'blood_type', ''),
-            "allergies": getattr(user, 'allergies', ''),
-            "emergency_contact_name": getattr(user, 'emergency_contact_name', ''),
-            "emergency_contact_phone": getattr(user, 'emergency_contact_phone', ''),
-            "avatar_initials": "PN"
-        }
-        return Response(data, status=200)
+        patient = Patient.objects.filter(user=request.user).first()
+        if patient is None:
+            patient = Patient(
+                user=request.user,
+                full_name=request.user.get_full_name() or request.user.username,
+            )
+        return Response(PatientProfileSerializer(patient).data)
 
+    @transaction.atomic
     def put(self, request):
-        user = request.user
-        data = request.data
-        
-        try:
-            # Nhận dữ liệu từ Frontend gửi lên và cập nhật vào user/database
-            full_name = data.get('full_name', '')
-            if full_name:
-                parts = full_name.split(' ', 1)
-                user.first_name = parts[0]
-                user.last_name = parts[1] if len(parts) > 1 else ''
-            
-            # Lưu các trường thông tin mở rộng (nếu bạn có lưu trong bảng UserProfile riêng, 
-            # hoặc tạm thời lưu vào thuộc tính user tùy theo cấu trúc database của bạn)
-            user.phone = data.get('phone', '')
-            user.address = data.get('address', '')
-            # ... (cập nhật thêm các trường y tế nếu bạn có cột tương ứng trong DB)
-            
-            user.save()
-            return Response({"message": "Cập nhật thành công!"}, status=200)
-            
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
+        patient = Patient.objects.filter(user=request.user).first()
+        if patient is None:
+            patient = Patient(
+                user=request.user,
+                full_name=request.user.get_full_name() or request.user.username,
+            )
+        data = request.data.copy()
+        if data.get('date_of_birth') == '':
+            data['date_of_birth'] = None
+        serializer = PatientProfileSerializer(patient, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        if 'full_name' in serializer.validated_data:
+            parts = patient.full_name.split(' ', 1)
+            request.user.first_name = parts[0]
+            request.user.last_name = parts[1] if len(parts) > 1 else ''
+            request.user.save(update_fields=['first_name', 'last_name'])
+        return Response(serializer.data)

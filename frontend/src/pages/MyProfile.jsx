@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { Avatar, Button, Input, message, Spin } from 'antd';
 import { CameraOutlined, UserOutlined } from '@ant-design/icons';
 
-const MyProfile = () => {
+const MyProfile = ({ onProfileUpdated }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -18,7 +18,7 @@ const MyProfile = () => {
     allergies: '',
     emergency_contact_name: '',
     emergency_contact_phone: '',
-    avatar_initials: 'PN'
+    avatar_initials: ''
   });
 
   const primaryTeal = '#4cb4b3';
@@ -33,10 +33,10 @@ const MyProfile = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await axios.get('http://127.0.0.1:8000/api/profile/', {
+      const response = await api.get('profile/', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setProfile(response.data);
+      setProfile({ ...response.data, date_of_birth: response.data.date_of_birth || '' });
     } catch (error) {
       console.error("Lỗi tải thông tin cá nhân:", error);
       message.error("Không thể tải thông tin profile.");
@@ -55,9 +55,11 @@ const MyProfile = () => {
     setSaving(true);
     try {
       const token = localStorage.getItem('accessToken');
-      await axios.put('http://127.0.0.1:8000/api/profile/update/', profile, {
+      const response = await api.put('profile/update/', profile, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      setProfile({ ...response.data, date_of_birth: response.data.date_of_birth || '' });
+      onProfileUpdated?.(response.data);
       message.success('Cập nhật thông tin thành công!');
     } catch (error) {
       console.error("Lỗi cập nhật profile:", error);
@@ -81,7 +83,7 @@ const MyProfile = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '30px', marginBottom: '30px' }}>
           <div style={{ position: 'relative' }}>
             <Avatar size={90} style={{ backgroundColor: '#e6f4f4', color: primaryTeal, fontWeight: 'bold', fontSize: '28px' }}>
-              {profile.avatar_initials || 'PN'}
+              {profile.avatar_initials || <UserOutlined />}
             </Avatar>
           </div>
           <Button 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { Input, Button, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 
@@ -23,7 +23,7 @@ const LoginPage = () => {
     setLoading(true);
     try {
       // Gọi API sang Django Backend
-      const response = await axios.post('http://127.0.0.1:8000/api/login/', {
+      const response = await api.post('login/', {
         username: username,
         password: password
       });

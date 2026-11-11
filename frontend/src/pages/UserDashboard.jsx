@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import BookAppointment from './BookAppointment'; 
 import MyAppointment from './MyAppointment';
 import MyProfile from './MyProfile';
@@ -10,7 +10,7 @@ import {
   FileTextOutlined, TeamOutlined, UserOutlined,
   SearchOutlined, BellOutlined
 } from '@ant-design/icons';
-import { Input, Button, Badge, Avatar, Spin, Popconfirm, message } from 'antd';
+import { Input, Button, Avatar, Spin, Popconfirm, message, Alert } from 'antd';
 
 
 
@@ -21,6 +21,31 @@ const UserDashboard = () => {
   
   const [activeMenu, setActiveMenu] = useState('Dashboard');
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [profileError, setProfileError] = useState('');
+  const [upcomingError, setUpcomingError] = useState('');
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    let active = true;
+    api.get('profile/', {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(({ data }) => {
+      if (active) {
+        setProfile(data);
+        setProfileError('');
+      }
+    }).catch((error) => {
+      if (!active) return;
+      if (error.response?.status === 401) navigate('/login');
+      else setProfileError('Không thể tải hồ sơ bệnh nhân.');
+    });
+    return () => { active = false; };
+  }, [activeMenu, navigate]);
   
   // State quản lý dữ liệu lịch hẹn gần nhất
   const [upcoming, setUpcoming] = useState(null);
@@ -50,9 +75,10 @@ const UserDashboard = () => {
 
   const fetchUpcomingAppointment = async () => {
     setLoadingUpcoming(true);
+    setUpcomingError('');
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await axios.get('http://127.0.0.1:8000/api/upcoming-appointment/', {
+      const response = await api.get('upcoming-appointment/', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -62,6 +88,8 @@ const UserDashboard = () => {
         setUpcoming(null); // Trạng thái 204: Không có lịch
       }
     } catch (error) {
+      if (error.response?.status === 401) navigate('/login');
+      else setUpcomingError('Không thể tải lịch hẹn. Vui lòng thử lại.');
       console.error("Lỗi lấy lịch hẹn:", error);
       setUpcoming(null);
     } finally {
@@ -71,7 +99,7 @@ const UserDashboard = () => {
   const handleCancel = async (appointmentId) => {
     try {
       const token = localStorage.getItem('accessToken');
-      await axios.post(`http://127.0.0.1:8000/api/cancel/${appointmentId}/`, {}, {
+      await api.post(`cancel/${appointmentId}/`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       message.success('Đã hủy lịch hẹn thành công!');
@@ -122,20 +150,23 @@ const UserDashboard = () => {
         
         {/* Top Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontFamily: 'serif', margin: 0, color: darkText, fontSize: '26px' }}>Good morning,!</h1>
+          <h1 style={{ fontFamily: 'serif', margin: 0, color: darkText, fontSize: '26px' }}>Xin chào{profile?.full_name ? `, ${profile.full_name}` : ''}!</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
             <Input prefix={<SearchOutlined style={{ color: '#bfbfbf' }}/>} placeholder="Search records..." style={{ width: '250px', borderRadius: '20px', backgroundColor: '#f5f5f5', border: 'none', padding: '8px 15px' }} />
-            <Badge count={3} size="small"><BellOutlined style={{ fontSize: '22px', color: '#666' }} /></Badge>
-            <Avatar style={{ backgroundColor: '#e6f4f4', color: primaryTeal, fontWeight: 'bold' }} size="large">PN</Avatar>
+            <BellOutlined style={{ fontSize: '22px', color: '#666' }} />
+            <Avatar icon={!profile?.avatar_initials ? <UserOutlined /> : undefined} style={{ backgroundColor: '#e6f4f4', color: primaryTeal, fontWeight: 'bold' }} size="large">{profile?.avatar_initials}</Avatar>
           </div>
         </div>
 
+        {profileError && <Alert type="error" title={profileError} showIcon />}
         {/* Nếu click chọn 'Dashboard' */}
         {activeMenu === 'Dashboard' && (
           <>
             {/* THẺ HIỂN THỊ LỊCH HẸN GẦN NHẤT */}
             {loadingUpcoming ? (
               <div style={{ textAlign: 'center', padding: '40px 0' }}><Spin size="large" /></div>
+            ) : upcomingError ? (
+              <Alert type="error" title={upcomingError} showIcon action={<Button onClick={fetchUpcomingAppointment}>Thử lại</Button>} />
             ) : upcoming ? (
               <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '25px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.02)', border: '1px solid #f0f0f0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -200,7 +231,7 @@ const UserDashboard = () => {
           />
         )}
         {activeMenu === 'My profile' && (
-          <MyProfile />
+          <MyProfile onProfileUpdated={setProfile} />
         )}
       </div>
     </div>

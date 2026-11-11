@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { SearchOutlined } from '@ant-design/icons';
 import { Input, Select, Avatar, Spin, Button, Modal, message } from 'antd';
 
@@ -24,7 +24,7 @@ const Doctors = ({ onSelectDoctorForBooking }) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const response = await axios.get('http://127.0.0.1:8000/api/doctors/', {
+      const response = await api.get('doctors/', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDoctors(response.data);
