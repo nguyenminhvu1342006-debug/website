@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import { Input, Button, message } from 'antd';
@@ -28,18 +28,29 @@ const LoginPage = () => {
         password: password
       });
 
-      // Nếu thành công, lưu Token vào localStorage
-      localStorage.setItem('accessToken', response.data.access);
-      localStorage.setItem('refreshToken', response.data.refresh);
-      
+      // Nếu thành công, lưu Token và Role vào localStorage
+      const { access, refresh, role } = response.data;
+      localStorage.setItem('accessToken', access);
+      localStorage.setItem('refreshToken', refresh);
+
+      let resolvedRole = role;
+      if (!resolvedRole) {
+        const meRes = await api.get('me/', {
+          headers: { Authorization: `Bearer ${access}` },
+        });
+        resolvedRole = meRes.data.role;
+      }
+      localStorage.setItem('userRole', resolvedRole);
+
       message.success('Đăng nhập thành công!');
-      
-      // Chuyển hướng người dùng vào Dashboard
-      navigate('/dashboard');
+
+      // Chuyển hướng người dùng theo vai trò
+      navigate(resolvedRole === 'doctor' ? '/doctor/dashboard' : '/dashboard');
       
     } catch (error) {
       console.error("Lỗi đăng nhập:", error);
-      message.error('Tài khoản hoặc mật khẩu không chính xác!');
+      const serverMsg = error.response?.data?.detail;
+      message.error(serverMsg || 'Tài khoản hoặc mật khẩu không chính xác!');
     } finally {
       setLoading(false);
     }

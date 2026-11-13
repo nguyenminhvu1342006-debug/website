@@ -49,15 +49,45 @@ class Doctor(models.Model):
 # 3. LỊCH HẸN (APPOINTMENT) - Kế thừa từ chức năng cũ
 class Appointment(models.Model):
     STATUS_CHOICES = [
-        ('Confirmed', 'Confirmed'),   # Lịch hẹn sắp tới
-        ('Completed', 'Completed'),   # Đã khám xong (do lễ tân/bác sĩ cập nhật)
-        ('Cancelled', 'Cancelled'),   # Đã hủy
+        ('Confirmed', 'Confirmed'),     # Lịch hẹn sắp tới (đã xác nhận, chưa check-in)
+        ('Checked-in', 'Checked-in'),   # Đã check-in tại quầy lễ tân, đang chờ khám
+        ('Completed', 'Completed'),     # Đã khám xong (bác sĩ hoàn thành bệnh án)
+        ('Cancelled', 'Cancelled'),     # Đã hủy
     ]
     patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointments')
     doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='appointments')
     date = models.DateField()
     time = models.TimeField()
-    status = models.CharField(max_length=20, default='Confirmed') # Confirmed, Cancelled
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Confirmed')
     
     def __str__(self):
         return f"Hẹn khám: {self.patient.username} gặp {self.doctor.full_name} ({self.date} {self.time})"
+
+
+# 4. HỒ SƠ BỆNH ÁN (MEDICAL RECORD) - Quan hệ 1-1 với Appointment
+class MedicalRecord(models.Model):
+    appointment = models.OneToOneField(
+        Appointment, on_delete=models.CASCADE, related_name='medical_record'
+    )
+    diagnosis = models.TextField(verbose_name="Chẩn đoán bệnh")
+    notes = models.TextField(blank=True, verbose_name="Lời dặn / Ghi chú")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Bệnh án #{self.id} - Lịch hẹn #{self.appointment_id}"
+
+
+# 5. ĐƠN THUỐC (PRESCRIPTION) - Quan hệ n-1 với MedicalRecord
+class Prescription(models.Model):
+    medical_record = models.ForeignKey(
+        MedicalRecord, on_delete=models.CASCADE, related_name='prescriptions'
+    )
+    medication_name = models.CharField(max_length=150, verbose_name="Tên thuốc")
+    dosage = models.CharField(max_length=100, verbose_name="Liều lượng")
+    instructions = models.CharField(max_length=255, blank=True, verbose_name="Cách dùng")
+
+    def __str__(self):
+        return f"{self.medication_name} ({self.dosage})"
