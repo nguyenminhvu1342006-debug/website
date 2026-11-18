@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 
 from .booking import BookingSerializer, book
 from .models import Appointment, Patient
-from .permissions import IsReceptionist
+from .permissions import IsDoctor, IsReceptionist
 from .serializers import DoctorAppointmentSerializer, PatientProfileSerializer
 
 User = get_user_model()
@@ -27,6 +27,33 @@ def generated_patient_user_id(value):
         if 0 < user_id <= 9223372036854775807 and value.upper() == f'A{user_id:07d}':
             return user_id
     return None
+
+
+def filter_patient_search(patients, search):
+    if not search:
+        return patients
+    matches = (Q(full_name__icontains=search) | Q(phone__icontains=search)
+               | Q(patient_id__icontains=search) | Q(user__username__icontains=search)
+               | Q(address__icontains=search))
+    user_id = generated_patient_user_id(search)
+    if user_id:
+        matches |= Q(user_id=user_id) & (Q(patient_id__isnull=True) | Q(patient_id=''))
+    return patients.filter(matches)
+
+
+class DoctorPatientSuggestionsView(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        patients = Patient.objects.select_related('user').filter(
+            user__is_active=True, user__appointments__doctor=request.user.doctor_profile,
+        ).distinct()
+        patients = filter_patient_search(patients, request.query_params.get('search', '').strip())
+        return Response([{
+            'id': patient.patient_id or f'A{patient.user_id:07d}',
+            'user_id': patient.user_id, 'full_name': patient.full_name,
+            'username': patient.user.username, 'phone': patient.phone,
+        } for patient in patients.order_by('full_name', 'pk')[:100]])
 
 
 class RegistrationSerializer(serializers.Serializer):
@@ -62,14 +89,7 @@ class ReceptionPatientsView(APIView):
     def get(self, request):
         patients = Patient.objects.select_related('user').filter(user__is_active=True)
         search = request.query_params.get('search', '').strip()
-        if search:
-            matches = (Q(full_name__icontains=search) | Q(phone__icontains=search)
-                       | Q(patient_id__icontains=search) | Q(user__username__icontains=search)
-                       | Q(address__icontains=search))
-            user_id = generated_patient_user_id(search)
-            if user_id:
-                matches |= Q(user_id=user_id) & (Q(patient_id__isnull=True) | Q(patient_id=''))
-            patients = patients.filter(matches)
+        patients = filter_patient_search(patients, search)
         return Response([dict(PatientProfileSerializer(patient).data, user_id=patient.user_id,
                               username=patient.user.username) for patient in patients.order_by('full_name')[:100]])
 

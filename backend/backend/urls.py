@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from clinic_api.reception import (
     ReceptionPatientsView, ReceptionAppointmentsView,
     ReceptionAppointmentActionView, ReceptionProfileView,
+    DoctorPatientSuggestionsView,
 )
 from clinic_api.records import PatientMedicalRecordListView, PatientMedicalRecordDetailView
 from clinic_api.views import (
@@ -25,6 +26,7 @@ from clinic_api.views import (
 )
 
 urlpatterns = [
+    path('api/doctor/patients/', DoctorPatientSuggestionsView.as_view(), name='doctor_patient_suggestions'),
     path('api/my-records/', PatientMedicalRecordListView.as_view(), name='patient_records'),
     path('api/my-records/<int:pk>/', PatientMedicalRecordDetailView.as_view(), name='patient_record_detail'),
     path('api/reception/patients/', ReceptionPatientsView.as_view()),

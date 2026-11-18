@@ -61,6 +61,27 @@ test('patient sees bookings and can log out', async ({ page }, testInfo) => {
   expect(errors).toEqual([]);
 });
 
+test('patient search dropdown recommends patients and respects doctor scope', async ({ page }) => {
+  await login(page, 'demo_reception');
+  await expect(page).toHaveURL(/\/reception$/);
+  await page.getByRole('button', { name: 'Gợi ý bệnh nhân' }).click();
+  await page.locator('.ant-select-item-option-content').filter({ hasText: 'Demo Patient' }).click();
+  await expect(page.getByRole('row').filter({ hasText: 'Demo Patient' })).toHaveCount(1);
+  await expect(page.getByRole('row').filter({ hasText: 'Medical Browser Patient' })).toHaveCount(0);
+  await page.getByPlaceholder('Tên, tài khoản, số điện thoại hoặc ID').fill('');
+  await expect(page.getByRole('row').filter({ hasText: 'Medical Browser Patient' })).toHaveCount(1);
+  await page.getByRole('navigation').getByRole('button', { name: 'Book Appointment', exact: true }).click();
+  await page.getByRole('button', { name: 'Gợi ý bệnh nhân' }).click();
+  await expect(page.locator('.ant-select-item-option-content').filter({ hasText: 'Demo Patient' })).toBeVisible();
+  await page.getByRole('button', { name: 'Log Out' }).click();
+  await login(page, 'dr.jane');
+  await expect(page).toHaveURL(/\/doctor\/dashboard$/);
+  await page.getByText('My Schedule', { exact: true }).first().click();
+  await page.getByRole('button', { name: 'Gợi ý bệnh nhân' }).click();
+  await expect(page.locator('.ant-select-item-option-content').filter({ hasText: 'Demo Patient' })).toBeVisible();
+  await expect(page.locator('.ant-select-item-option-content').filter({ hasText: 'Medical Browser Patient' })).toHaveCount(0);
+});
+
 test('reception checks in patient and doctor sees waiting patient', async ({ page }, testInfo) => {
   await login(page, 'demo_reception');
   await expect(page).toHaveURL(/\/reception$/);
