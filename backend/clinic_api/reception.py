@@ -1,4 +1,6 @@
 """Reception desk: patient registration, booking and check-in."""
+import re
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -16,6 +18,15 @@ from .permissions import IsReceptionist
 from .serializers import DoctorAppointmentSerializer, PatientProfileSerializer
 
 User = get_user_model()
+
+
+def generated_patient_user_id(value):
+    match = re.fullmatch(r'A([0-9]{7,19})', value.upper())
+    if match:
+        user_id = int(match.group(1))
+        if 0 < user_id <= 9223372036854775807 and value.upper() == f'A{user_id:07d}':
+            return user_id
+    return None
 
 
 class RegistrationSerializer(serializers.Serializer):
@@ -52,8 +63,13 @@ class ReceptionPatientsView(APIView):
         patients = Patient.objects.select_related('user').filter(user__is_active=True)
         search = request.query_params.get('search', '').strip()
         if search:
-            patients = patients.filter(Q(full_name__icontains=search) | Q(phone__icontains=search)
-                                       | Q(patient_id__icontains=search) | Q(user__username__icontains=search))
+            matches = (Q(full_name__icontains=search) | Q(phone__icontains=search)
+                       | Q(patient_id__icontains=search) | Q(user__username__icontains=search)
+                       | Q(address__icontains=search))
+            user_id = generated_patient_user_id(search)
+            if user_id:
+                matches |= Q(user_id=user_id) & (Q(patient_id__isnull=True) | Q(patient_id=''))
+            patients = patients.filter(matches)
         return Response([dict(PatientProfileSerializer(patient).data, user_id=patient.user_id,
                               username=patient.user.username) for patient in patients.order_by('full_name')[:100]])
 
@@ -88,10 +104,18 @@ class ReceptionAppointmentsView(APIView):
         ).filter(date=day)
         search = request.query_params.get('search', '').strip()
         if search:
-            appointments = appointments.filter(
+            matches = (
                 Q(patient__patient_profile__full_name__icontains=search)
                 | Q(patient__patient_profile__phone__icontains=search)
-                | Q(patient__username__icontains=search))
+                | Q(patient__username__icontains=search)
+                | Q(patient__patient_profile__patient_id__iexact=search)
+            )
+            user_id = generated_patient_user_id(search)
+            if user_id:
+                no_custom_code = (Q(patient__patient_profile__patient_id__isnull=True)
+                                  | Q(patient__patient_profile__patient_id=''))
+                matches |= Q(patient_id=user_id) & no_custom_code
+            appointments = appointments.filter(matches)
         return Response([dict(DoctorAppointmentSerializer(app).data,
                               doctor_name=app.doctor.full_name) for app in appointments.order_by('time', 'pk')])
 

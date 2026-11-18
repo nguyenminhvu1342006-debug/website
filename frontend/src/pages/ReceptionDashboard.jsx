@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { Alert, Button, DatePicker, Form, Input, Modal, Popconfirm, Select, Spin, Table, Tag, message } from 'antd';
+import { Alert, Button, DatePicker, Form, Input, Modal, Popconfirm, Spin, Table, Tag, message } from 'antd';
 import { CalendarOutlined, CheckCircleOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import api from '../api';
 import useResource, { errorText } from '../hooks/useResource';
 import Workspace from '../components/Workspace';
+import PatientSearch from '../components/PatientSearch';
 import BookAppointment from './BookAppointment';
 
 const menu = [
-  { key: 'appointments', label: 'Lịch hẹn & Check-in', icon: <CheckCircleOutlined /> },
-  { key: 'booking', label: 'Đặt lịch', icon: <CalendarOutlined /> },
-  { key: 'patients', label: 'Đăng ký bệnh nhân', icon: <TeamOutlined /> },
-  { key: 'profile', label: 'Hồ sơ cá nhân', icon: <UserOutlined /> },
+  { key: 'appointments', label: 'Appointments & Check-in', icon: <CheckCircleOutlined /> },
+  { key: 'booking', label: 'Book Appointment', icon: <CalendarOutlined /> },
+  { key: 'patients', label: 'Patient Registration', icon: <TeamOutlined /> },
+  { key: 'profile', label: 'My Profile', icon: <UserOutlined /> },
 ];
 const statusNames = { Confirmed: 'Chưa check-in', 'Checked-in': 'Chờ khám', Completed: 'Đã khám', Cancelled: 'Đã hủy' };
 
@@ -35,7 +36,8 @@ export default function ReceptionDashboard() {
   const [active, setActive] = useState('appointments');
   const [day, setDay] = useState(dayjs());
   const [search, setSearch] = useState('');
-  const [patientId, setPatientId] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const patientId = selectedPatient?.user_id;
   const [registering, setRegistering] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(null);
@@ -43,7 +45,7 @@ export default function ReceptionDashboard() {
   const [form] = Form.useForm();
   const profile = useResource('reception/profile/');
   const appointments = useResource('reception/appointments/', { date: day.format('YYYY-MM-DD'), search });
-  const patients = useResource('reception/patients/', { search });
+  const patients = useResource(active === 'patients' ? 'reception/patients/' : null, { search });
   const act = async (id, action) => {
     setBusy(id);
     try { await api.post(`reception/appointments/${id}/`, { action }); message.success('Đã cập nhật.'); appointments.reload(); }
@@ -57,17 +59,18 @@ export default function ReceptionDashboard() {
         ...values, date_of_birth: values.date_of_birth?.format('YYYY-MM-DD') || null,
       });
       message.success('Đã tạo tài khoản bệnh nhân.');
-      setPatientId(data.user_id); setSearch(''); patients.reload();
+      setSelectedPatient({ ...data, username: values.username }); setSearch(''); patients.reload();
       setRegistering(false); form.resetFields();
     } catch (error) { message.error(errorText(error)); }
     finally { setSaving(false); }
   };
   return <Workspace menu={menu} active={active} onChange={(key) => { setActive(key); setSearch(''); }}
-    profile={profile.data} subtitle="Reception Workspace">
+    profile={profile.data} subtitle="Reception Workspace" logoutLabel="Log Out">
     {profile.error && <Alert type="error" title={profile.error} action={<Button onClick={profile.reload}>Thử lại</Button>} />}
     {active === 'appointments' && <section className="panel"><h2>Lịch hẹn & Check-in</h2>
       <div className="toolbar"><DatePicker value={day} allowClear={false} onChange={setDay} />
-        <Input.Search placeholder="Tên, tài khoản hoặc số điện thoại" allowClear onSearch={setSearch} />
+        <Input.Search aria-label="Tìm theo tên, tài khoản, số điện thoại hoặc ID"
+          placeholder="Tên, tài khoản, số điện thoại hoặc ID" allowClear onSearch={setSearch} />
         <Button onClick={appointments.reload}>Làm mới</Button></div>
       {appointments.error ? <Alert type="error" title={appointments.error} /> : <Table rowKey="id" loading={appointments.loading}
         dataSource={appointments.data || []} scroll={{ x: 850 }} columns={[
@@ -85,16 +88,16 @@ export default function ReceptionDashboard() {
     </section>}
     {(active === 'booking' || active === 'patients') && <>
       <section className="panel"><h2>{active === 'booking' ? 'Đặt lịch cho bệnh nhân' : 'Danh sách bệnh nhân'}</h2>
-        <div className="toolbar"><Input.Search placeholder="Tìm bệnh nhân" onSearch={setSearch} allowClear />
-          <Button type="primary" onClick={() => setRegistering(true)}>Đăng ký bệnh nhân mới</Button></div>
+        {active === 'booking' && <p>Đặt lịch hộ bệnh nhân đã có tài khoản. Với bệnh nhân mới, vui lòng vào mục Đăng ký bệnh nhân trước.</p>}
+        {active === 'patients' && <div className="toolbar"><Input.Search key={active} aria-label="Tìm bệnh nhân theo ID, họ tên, tài khoản, số điện thoại hoặc địa chỉ"
+          placeholder="ID, tên, tài khoản, SĐT hoặc địa chỉ" onSearch={setSearch} allowClear />
+          <Button type="primary" onClick={() => setRegistering(true)}>Đăng ký bệnh nhân mới</Button></div>}
         {patients.error && <Alert type="error" title={patients.error} action={<Button onClick={patients.reload}>Thử lại</Button>} />}
-        {active === 'booking' ? <Select showSearch optionFilterProp="label" className="full-width" placeholder="Chọn bệnh nhân"
-          loading={patients.loading} value={patientId} onChange={setPatientId}
-          options={(patients.data || []).map((item) => ({ value: item.user_id, label: `${item.full_name} · ${item.username} · ${item.phone}` }))} />
+        {active === 'booking' ? <PatientSearch initialPatient={selectedPatient} onSelect={setSelectedPatient} />
           : <Table rowKey="user_id" loading={patients.loading} dataSource={patients.data || []} scroll={{ x: 650 }} columns={[
             { title: 'Mã bệnh nhân', dataIndex: 'id' }, { title: 'Họ tên', dataIndex: 'full_name' },
             { title: 'Tài khoản', dataIndex: 'username' }, { title: 'Số điện thoại', dataIndex: 'phone' },
-            { title: 'Thao tác', render: (_, row) => <Button onClick={() => { setPatientId(row.user_id); setActive('booking'); }}>Đặt lịch</Button> },
+            { title: 'Thao tác', render: (_, row) => <Button onClick={() => { setSelectedPatient(row); setSearch(''); setActive('booking'); }}>Đặt lịch</Button> },
           ]} />}
       </section>
       {active === 'booking' && patientId && <BookAppointment key={patientId} patientUserId={patientId}

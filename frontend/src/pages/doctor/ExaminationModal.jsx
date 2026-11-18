@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Button,
@@ -16,6 +16,7 @@ import {
 } from 'antd';
 import { DeleteOutlined, FileTextOutlined, MedicineBoxOutlined, PlusOutlined } from '@ant-design/icons';
 import api from '../../api';
+import useResource, { errorText } from '../../hooks/useResource';
 
 const { TextArea } = Input;
 
@@ -28,30 +29,11 @@ const ExaminationModal = ({ open, appointment, onClose, onSuccess }) => {
   const [prescriptions, setPrescriptions] = useState([{ ...EMPTY_MEDICATION }]);
   const [submitting, setSubmitting] = useState(false);
 
-  const [history, setHistory] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(Boolean(open && appointment?.patient_info?.user_id));
-
   const patient = appointment?.patient_info;
-
-  useEffect(() => {
-    if (!open || !patient?.user_id) return;
-    let active = true;
-    api
-      .get('doctor/records/', { params: { patient_user_id: patient.user_id } })
-      .then(({ data }) => {
-        if (active) setHistory(data);
-      })
-      .catch(() => {
-        if (active) setHistory([]);
-      })
-      .finally(() => {
-        if (active) setLoadingHistory(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [open, patient?.user_id]);
+  const historyResource = useResource(open && patient?.user_id ? 'doctor/records/' : null,
+    { patient_user_id: patient?.user_id });
+  const history = historyResource.data || [];
+  const loadingHistory = historyResource.loading;
 
   const handleMedicationChange = (index, field, value) => {
     setPrescriptions((prev) =>
@@ -99,7 +81,7 @@ const ExaminationModal = ({ open, appointment, onClose, onSuccess }) => {
       onSuccess?.();
       onClose?.();
     } catch (error) {
-      const msg = error.response?.data?.error || error.response?.data?.detail || 'Không thể lưu bệnh án.';
+      const msg = errorText(error);
       message.error(msg);
     } finally {
       setSubmitting(false);
@@ -109,7 +91,10 @@ const ExaminationModal = ({ open, appointment, onClose, onSuccess }) => {
   return (
     <Modal
       open={open}
-      onCancel={onClose}
+      onCancel={submitting ? undefined : onClose}
+      closable={!submitting}
+      mask={{ closable: !submitting }}
+      keyboard={!submitting}
       width={860}
       destroyOnHidden
       title={
@@ -252,6 +237,8 @@ const ExaminationModal = ({ open, appointment, onClose, onSuccess }) => {
               <div style={{ textAlign: 'center', padding: '30px' }}>
                 <Spin />
               </div>
+            ) : historyResource.error ? (
+              <Alert type="error" title={historyResource.error} action={<Button onClick={historyResource.reload}>Thử lại</Button>} />
             ) : history.length === 0 ? (
               <Empty description="Bệnh nhân chưa có dữ liệu lịch sử khám" />
             ) : (

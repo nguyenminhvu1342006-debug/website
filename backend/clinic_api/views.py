@@ -10,7 +10,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Appointment, Doctor, MedicalRecord, Patient
+from .models import Appointment, Doctor, Patient
+from .records import DoctorMedicalRecordListView, DoctorMedicalRecordDetailView
+from .reception import generated_patient_user_id
 from .permissions import IsDoctor, IsPatient
 from .booking import BookingSerializer, SlotQuerySerializer, SLOTS, OCCUPIED, book
 from .serializers import (
@@ -159,7 +161,7 @@ class MyAppointmentsView(APIView):
             from rest_framework.exceptions import ValidationError
             raise ValidationError({'status': 'Trạng thái không hợp lệ.'})
         statuses = ['Confirmed', 'Checked-in'] if status_param == 'Confirmed' else [status_param]
-        appointments = Appointment.objects.select_related('doctor__specialization').filter(
+        appointments = Appointment.objects.select_related('doctor__specialization', 'medical_record').filter(
             patient=request.user, status__in=statuses
         ).order_by('date', 'time')
 
@@ -177,7 +179,8 @@ class MyAppointmentsView(APIView):
                 "doctor_name": doctor_name,
                 "doctor_specialty": specialty_name,
                 "doctor_initials": initials,
-                "status": app.status
+                "status": app.status,
+                "medical_record_id": app.medical_record.pk if hasattr(app, "medical_record") and app.status == "Completed" else None,
             })
 
         return Response(data, status=200)
@@ -364,12 +367,19 @@ class DoctorAppointmentListView(APIView):
             qs = qs.filter(status=status_param)
 
         if search_param:
-            qs = qs.filter(
+            matches = (
                 Q(patient__patient_profile__full_name__icontains=search_param)
                 | Q(patient__patient_profile__phone__icontains=search_param)
                 | Q(patient__patient_profile__patient_id__icontains=search_param)
                 | Q(patient__username__icontains=search_param)
             )
+            user_id = generated_patient_user_id(search_param)
+            if user_id:
+                matches |= Q(patient_id=user_id) & (
+                    Q(patient__patient_profile__patient_id__isnull=True)
+                    | Q(patient__patient_profile__patient_id='')
+                )
+            qs = qs.filter(matches)
 
         qs = qs.order_by('date', 'status_priority', 'time')
         return Response(DoctorAppointmentSerializer(qs, many=True).data, status=status.HTTP_200_OK)
@@ -385,7 +395,7 @@ class DoctorExamineView(APIView):
         doctor = request.user.doctor_profile
         appointment = (
             Appointment.objects
-            .select_related('patient', 'patient__patient_profile', 'doctor')
+            .select_for_update()
             .filter(id=pk, doctor=doctor)
             .first()
         )
@@ -410,6 +420,9 @@ class DoctorExamineView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if appointment.date > timezone.localdate():
+            return Response({'error': 'Không thể hoàn tất lịch khám ở ngày tương lai.'}, status=400)
+
         serializer = CreateMedicalRecordSerializer(
             data=request.data,
             context={'appointment': appointment},
@@ -421,92 +434,6 @@ class DoctorExamineView(APIView):
         appointment.save(update_fields=['status'])
 
         return Response(MedicalRecordSerializer(record).data, status=status.HTTP_201_CREATED)
-
-
-class DoctorMedicalRecordListView(APIView):
-    """UC-07: Tra cứu lịch sử biên bản khám và đơn thuốc (read-only)."""
-
-    permission_classes = [IsDoctor]
-
-    def get(self, request):
-        doctor = request.user.doctor_profile
-        patient_user_id = request.query_params.get('patient_user_id')
-        search_param = (request.query_params.get('search') or '').strip()
-        date_param = request.query_params.get('date')
-
-        qs = (
-            MedicalRecord.objects
-            .select_related(
-                'appointment',
-                'appointment__doctor',
-                'appointment__doctor__specialization',
-                'appointment__patient',
-                'appointment__patient__patient_profile',
-            )
-            .prefetch_related('prescriptions')
-        )
-
-        if patient_user_id:
-            # Chỉ cho phép bác sĩ xem tiền sử của bệnh nhân đã có lịch hẹn với mình
-            if not Appointment.objects.filter(doctor=doctor, patient_id=patient_user_id).exists():
-                return Response(
-                    {'error': 'Bạn không có quyền xem bệnh án của bệnh nhân này.'},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-            qs = qs.filter(appointment__patient_id=patient_user_id)
-        else:
-            qs = qs.filter(appointment__doctor=doctor)
-
-        if date_param:
-            qs = qs.filter(appointment__date=date_param)
-
-        if search_param:
-            qs = qs.filter(
-                Q(appointment__patient__patient_profile__full_name__icontains=search_param)
-                | Q(appointment__patient__patient_profile__patient_id__icontains=search_param)
-                | Q(appointment__patient__username__icontains=search_param)
-                | Q(diagnosis__icontains=search_param)
-            )
-
-        return Response(MedicalRecordSerializer(qs, many=True).data, status=status.HTTP_200_OK)
-
-
-class DoctorMedicalRecordDetailView(APIView):
-    """UC-07: Xem chi tiết 1 biên bản khám bệnh và đơn thuốc."""
-
-    permission_classes = [IsDoctor]
-
-    def get(self, request, pk):
-        doctor = request.user.doctor_profile
-        record = (
-            MedicalRecord.objects
-            .select_related(
-                'appointment',
-                'appointment__doctor',
-                'appointment__doctor__specialization',
-                'appointment__patient',
-                'appointment__patient__patient_profile',
-            )
-            .prefetch_related('prescriptions')
-            .filter(id=pk)
-            .first()
-        )
-        if record is None:
-            raise NotFound(detail='Không tìm thấy hồ sơ bệnh án.')
-
-        has_access = (
-            record.appointment.doctor_id == doctor.id
-            or Appointment.objects.filter(
-                doctor=doctor, patient_id=record.appointment.patient_id
-            ).exists()
-        )
-        if not has_access:
-            return Response(
-                {'error': 'Bạn không có quyền xem hồ sơ bệnh án này.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        return Response(MedicalRecordSerializer(record).data, status=status.HTTP_200_OK)
 
 
 class DoctorProfileView(APIView):

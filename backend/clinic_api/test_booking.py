@@ -66,6 +66,54 @@ class BookingWorkflowTests(TestCase):
         self.assertNotIn('09:00:00', response.data['available_slots'])
         self.assertEqual(self.client.get('/api/slots/', {'doctor_id': self.doctor.pk, 'date': 'invalid'}).status_code, 400)
 
+    def test_reception_filters_by_displayed_patient_code(self):
+        appointment = self.create_booking()
+        Appointment.objects.create(patient=self.other_user, doctor=self.doctor,
+                                   date=self.day, time='10:00:00')
+        self.client.force_authenticate(self.reception)
+        params = {'date': self.day.isoformat(), 'search': f' a{self.patient_user.pk:07d} '}
+        response = self.client.get('/api/reception/appointments/', params)
+        self.assertEqual([item['id'] for item in response.data], [appointment.pk])
+        # Search must agree with the code displayed when a custom code exists.
+        self.patient.patient_id = 'BN-001'
+        self.patient.save()
+        self.assertEqual(self.client.get('/api/reception/appointments/', params).data, [])
+        params['search'] = 'bn-001'
+        self.assertEqual(len(self.client.get('/api/reception/appointments/', params).data), 1)
+        params['search'] = 'nonexistent-name'
+        self.assertEqual(self.client.get('/api/reception/appointments/', params).data, [])
+        params = {'date': self.day.isoformat(), 'search': ''}
+        self.assertEqual(len(self.client.get('/api/reception/appointments/', params).data), 2)
+
+    def test_patient_lookup_supports_display_id_and_contact_details(self):
+        self.client.force_authenticate(self.reception)
+        self.patient.phone = '0901234567'
+        self.patient.address = 'District 3'
+        self.patient.save()
+        url = '/api/reception/patients/'
+        for search in (f'a{self.patient_user.pk:07d}', 'Demo Booking', 'booking_patient', '0901234567', 'District 3'):
+            response = self.client.get(url, {'search': search})
+            self.assertEqual([item['user_id'] for item in response.data], [self.patient_user.pk], search)
+        self.patient.patient_id = 'BN-LOOKUP'
+        self.patient.save()
+        self.assertEqual(self.client.get(url, {'search': f'A{self.patient_user.pk:07d}'}).data, [])
+        self.assertEqual(len(self.client.get(url, {'search': 'BN-LOOKUP'}).data), 1)
+        self.assertEqual(self.client.get(url, {'search': 'no-matching-patient'}).data, [])
+
+    def test_doctor_schedule_can_search_displayed_patient_ids(self):
+        appointment = self.create_booking()
+        Appointment.objects.create(patient=self.other_user, doctor=self.doctor, date=self.day, time='10:00:00')
+        Appointment.objects.create(patient=self.patient_user, doctor=self.other_doctor, date=self.day, time='11:00:00')
+        self.client.force_authenticate(self.doctor_user)
+        url = '/api/doctor/appointments/'
+        params = {'search': f' a{self.patient_user.pk:07d} '}
+        self.assertEqual([item['id'] for item in self.client.get(url, params).data], [appointment.pk])
+        self.patient.patient_id = 'BN-DOCTOR'
+        self.patient.save()
+        self.assertEqual(self.client.get(url, params).data, [])
+        params['search'] = 'bn-doctor'
+        self.assertEqual([item['id'] for item in self.client.get(url, params).data], [appointment.pk])
+
     def test_completed_slot_remains_occupied(self):
         appointment = self.create_booking()
         appointment.status = 'Completed'

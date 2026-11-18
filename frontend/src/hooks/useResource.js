@@ -4,9 +4,16 @@ import api from '../api';
 export function errorText(error) {
   const data = error.response?.data;
   if (typeof data === 'string') return 'Không thể xử lý yêu cầu.';
-  if (data) return Object.entries(data).map(([key, value]) =>
-    `${['detail', 'error', 'non_field_errors'].includes(key) ? '' : `${key}: `}${Array.isArray(value) ? value.join(' ') : value}`,
-  ).join(' ');
+  if (data) {
+    const flatten = (value, path = '') => {
+      if (Array.isArray(value)) return value.flatMap((item, index) => flatten(item,
+        typeof item === 'object' && item !== null ? `${path} #${index + 1}` : path));
+      if (value && typeof value === 'object') return Object.entries(value).flatMap(([key, item]) =>
+        flatten(item, ['detail', 'error', 'non_field_errors'].includes(key) ? path : [path, key].filter(Boolean).join(' · ')));
+      return `${path ? `${path}: ` : ''}${value}`;
+    };
+    return flatten(data).join(' ');
+  }
   return 'Không thể kết nối máy chủ. Vui lòng thử lại.';
 }
 
