@@ -1,11 +1,34 @@
+from datetime import timedelta
+from django.contrib.auth import authenticate, get_user_model
 from django.db import transaction
-from .serializers import PatientProfileSerializer
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from .models import Doctor, Patient, Appointment
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
+from rest_framework import status
 from rest_framework.exceptions import NotFound
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from .models import Appointment, Doctor, MedicalRecord, Patient
+from .permissions import IsDoctor
+from .serializers import (
+    CreateMedicalRecordSerializer,
+    DoctorAppointmentSerializer,
+    DoctorProfileSerializer,
+    MedicalRecordSerializer,
+    PatientProfileSerializer,
+)
+
+User = get_user_model()
+
+
+def _resolve_user_role(user):
+    if hasattr(user, 'doctor_profile'):
+        return 'doctor'
+    if user.is_superuser:
+        return 'admin'
+    return 'patient'
 
 class AvailableSlotsView(APIView):
     permission_classes = [IsAuthenticated] # Bắt buộc phải đăng nhập mới xem được lịch
@@ -37,7 +60,7 @@ class AvailableSlotsView(APIView):
             booked_appointments = Appointment.objects.filter(
                 doctor=doctor, 
                 date=date_str,
-                status='Confirmed'
+                status__in=['Confirmed', 'Checked-in']
             )
             
             # Lấy ra danh sách các giờ đã bị chiếm (dùng cột 'time' thay vì 'appointment_time')
@@ -81,7 +104,7 @@ class BookAppointmentView(APIView):
                 doctor=doctor, 
                 date=date_str, 
                 time=time_str,
-                status='Confirmed'
+                status__in=['Confirmed', 'Checked-in']
             ).exists()
             
             if doctor_booked:
@@ -91,7 +114,7 @@ class BookAppointmentView(APIView):
                 patient=request.user,
                 date=date_str,
                 time=time_str,
-                status='Confirmed'
+                status__in=['Confirmed', 'Checked-in']
             ).exists()
 
             if patient_booked:
@@ -258,3 +281,323 @@ class UserProfileView(APIView):
             request.user.last_name = parts[1] if len(parts) > 1 else ''
             request.user.save(update_fields=['first_name', 'last_name'])
         return Response(serializer.data)
+
+
+# ==============================================================================
+# AUTH ROLE & DOCTOR USE CASE VIEWS (UC-01, UC-06, UC-07, Doctor Profile)
+# ==============================================================================
+
+def _doctor_appointment_queryset(doctor):
+    status_priority = Case(
+        When(status='Checked-in', then=Value(0)),
+        When(status='Confirmed', then=Value(1)),
+        When(status='Completed', then=Value(2)),
+        When(status='Cancelled', then=Value(3)),
+        default=Value(4),
+        output_field=IntegerField(),
+    )
+    return (
+        Appointment.objects
+        .filter(doctor=doctor)
+        .select_related('patient', 'patient__patient_profile', 'doctor', 'medical_record')
+        .annotate(status_priority=status_priority)
+    )
+
+
+class CustomLoginView(APIView):
+    """UC-01: Đăng nhập, kiểm tra khóa tài khoản và trả role cho Frontend."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = (request.data.get('username') or '').strip()
+        password = request.data.get('password') or ''
+
+        if not username or not password:
+            return Response(
+                {'detail': 'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        existing_user = User.objects.filter(username=username).first()
+        if existing_user and existing_user.check_password(password) and not existing_user.is_active:
+            return Response(
+                {'detail': 'Tài khoản của bạn đã bị khóa, vui lòng liên hệ quản trị viên.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        user = authenticate(request=request, username=username, password=password)
+        if user is None:
+            return Response(
+                {'detail': 'Tài khoản hoặc mật khẩu không chính xác.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'role': _resolve_user_role(user),
+            'username': user.username,
+        }, status=status.HTTP_200_OK)
+
+
+class UserInfoView(APIView):
+    """Trả thông tin người dùng hiện tại, role và profile tương ứng."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        role = _resolve_user_role(user)
+        profile_data = None
+        if role == 'doctor':
+            profile_data = DoctorProfileSerializer(user.doctor_profile).data
+        elif role == 'patient':
+            patient = Patient.objects.filter(user=user).first()
+            if patient:
+                profile_data = PatientProfileSerializer(patient).data
+
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'role': role,
+            'profile': profile_data,
+        }, status=status.HTTP_200_OK)
+
+
+class DoctorDashboardView(APIView):
+    """Tổng quan dành cho Bác sĩ: thống kê trong ngày và danh sách lịch hẹn hôm nay."""
+
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        doctor = request.user.doctor_profile
+        today = timezone.localtime().date()
+
+        base_qs = _doctor_appointment_queryset(doctor)
+        today_qs = base_qs.filter(date=today).order_by('status_priority', 'time')
+
+        next_appointment = (
+            today_qs.filter(status='Checked-in').first()
+            or base_qs.filter(date__gte=today, status='Confirmed').order_by('date', 'time').first()
+        )
+
+        return Response({
+            'doctor': DoctorProfileSerializer(doctor).data,
+            'today_date': today.isoformat(),
+            'stats': {
+                'today_total': today_qs.exclude(status='Cancelled').count(),
+                'today_waiting': today_qs.filter(status='Checked-in').count(),
+                'today_confirmed': today_qs.filter(status='Confirmed').count(),
+                'today_completed': today_qs.filter(status='Completed').count(),
+                'total_patients_seen': (
+                    base_qs.filter(status='Completed').values('patient_id').distinct().count()
+                ),
+            },
+            'next_appointment': (
+                DoctorAppointmentSerializer(next_appointment).data if next_appointment else None
+            ),
+            'today_appointments': DoctorAppointmentSerializer(today_qs, many=True).data,
+        }, status=status.HTTP_200_OK)
+
+
+class DoctorAppointmentListView(APIView):
+    """UC-06: Xem danh sách lịch khám của bác sĩ (lọc theo ngày/tuần/trạng thái/tìm kiếm)."""
+
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        doctor = request.user.doctor_profile
+        qs = _doctor_appointment_queryset(doctor)
+
+        date_param = request.query_params.get('date')
+        range_param = request.query_params.get('range', 'all')
+        status_param = request.query_params.get('status', 'All')
+        search_param = (request.query_params.get('search') or '').strip()
+
+        today = timezone.localtime().date()
+        if date_param:
+            qs = qs.filter(date=date_param)
+        elif range_param == 'today':
+            qs = qs.filter(date=today)
+        elif range_param == 'week':
+            week_start = today - timedelta(days=today.weekday())
+            week_end = week_start + timedelta(days=6)
+            qs = qs.filter(date__range=(week_start, week_end))
+
+        if status_param and status_param != 'All':
+            qs = qs.filter(status=status_param)
+
+        if search_param:
+            qs = qs.filter(
+                Q(patient__patient_profile__full_name__icontains=search_param)
+                | Q(patient__patient_profile__phone__icontains=search_param)
+                | Q(patient__patient_profile__patient_id__icontains=search_param)
+                | Q(patient__username__icontains=search_param)
+            )
+
+        qs = qs.order_by('date', 'status_priority', 'time')
+        return Response(DoctorAppointmentSerializer(qs, many=True).data, status=status.HTTP_200_OK)
+
+
+class DoctorExamineView(APIView):
+    """UC-06 -> UC-07: Ghi nhận chẩn đoán, đơn thuốc và hoàn tất buổi khám (chỉ lịch Checked-in)."""
+
+    permission_classes = [IsDoctor]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        doctor = request.user.doctor_profile
+        appointment = (
+            Appointment.objects
+            .select_related('patient', 'patient__patient_profile', 'doctor')
+            .filter(id=pk, doctor=doctor)
+            .first()
+        )
+        if appointment is None:
+            raise NotFound(detail='Không tìm thấy lịch hẹn thuộc bác sĩ hiện tại.')
+
+        if hasattr(appointment, 'medical_record'):
+            return Response(
+                {'error': 'Lịch hẹn này đã được lập bệnh án trước đó.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if appointment.status == 'Confirmed':
+            return Response(
+                {'error': 'Bệnh nhân chưa check-in tại quầy Lễ tân. Chỉ có thể khám lịch hẹn ở trạng thái Checked-in.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if appointment.status != 'Checked-in':
+            return Response(
+                {'error': f'Không thể khám lịch hẹn đang ở trạng thái {appointment.status}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = CreateMedicalRecordSerializer(
+            data=request.data,
+            context={'appointment': appointment},
+        )
+        serializer.is_valid(raise_exception=True)
+        record = serializer.save()
+
+        appointment.status = 'Completed'
+        appointment.save(update_fields=['status'])
+
+        return Response(MedicalRecordSerializer(record).data, status=status.HTTP_201_CREATED)
+
+
+class DoctorMedicalRecordListView(APIView):
+    """UC-07: Tra cứu lịch sử biên bản khám và đơn thuốc (read-only)."""
+
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        doctor = request.user.doctor_profile
+        patient_user_id = request.query_params.get('patient_user_id')
+        search_param = (request.query_params.get('search') or '').strip()
+        date_param = request.query_params.get('date')
+
+        qs = (
+            MedicalRecord.objects
+            .select_related(
+                'appointment',
+                'appointment__doctor',
+                'appointment__doctor__specialization',
+                'appointment__patient',
+                'appointment__patient__patient_profile',
+            )
+            .prefetch_related('prescriptions')
+        )
+
+        if patient_user_id:
+            # Chỉ cho phép bác sĩ xem tiền sử của bệnh nhân đã có lịch hẹn với mình
+            if not Appointment.objects.filter(doctor=doctor, patient_id=patient_user_id).exists():
+                return Response(
+                    {'error': 'Bạn không có quyền xem bệnh án của bệnh nhân này.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            qs = qs.filter(appointment__patient_id=patient_user_id)
+        else:
+            qs = qs.filter(appointment__doctor=doctor)
+
+        if date_param:
+            qs = qs.filter(appointment__date=date_param)
+
+        if search_param:
+            qs = qs.filter(
+                Q(appointment__patient__patient_profile__full_name__icontains=search_param)
+                | Q(appointment__patient__patient_profile__patient_id__icontains=search_param)
+                | Q(appointment__patient__username__icontains=search_param)
+                | Q(diagnosis__icontains=search_param)
+            )
+
+        return Response(MedicalRecordSerializer(qs, many=True).data, status=status.HTTP_200_OK)
+
+
+class DoctorMedicalRecordDetailView(APIView):
+    """UC-07: Xem chi tiết 1 biên bản khám bệnh và đơn thuốc."""
+
+    permission_classes = [IsDoctor]
+
+    def get(self, request, pk):
+        doctor = request.user.doctor_profile
+        record = (
+            MedicalRecord.objects
+            .select_related(
+                'appointment',
+                'appointment__doctor',
+                'appointment__doctor__specialization',
+                'appointment__patient',
+                'appointment__patient__patient_profile',
+            )
+            .prefetch_related('prescriptions')
+            .filter(id=pk)
+            .first()
+        )
+        if record is None:
+            raise NotFound(detail='Không tìm thấy hồ sơ bệnh án.')
+
+        has_access = (
+            record.appointment.doctor_id == doctor.id
+            or Appointment.objects.filter(
+                doctor=doctor, patient_id=record.appointment.patient_id
+            ).exists()
+        )
+        if not has_access:
+            return Response(
+                {'error': 'Bạn không có quyền xem hồ sơ bệnh án này.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return Response(MedicalRecordSerializer(record).data, status=status.HTTP_200_OK)
+
+
+class DoctorProfileView(APIView):
+    """Xem và cập nhật hồ sơ cá nhân của Bác sĩ."""
+
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        return Response(DoctorProfileSerializer(request.user.doctor_profile).data, status=status.HTTP_200_OK)
+
+    @transaction.atomic
+    def put(self, request):
+        doctor = request.user.doctor_profile
+        data = request.data.copy()
+        if data.get('date_of_birth') == '':
+            data['date_of_birth'] = None
+
+        serializer = DoctorProfileSerializer(doctor, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        if 'full_name' in serializer.validated_data:
+            parts = doctor.full_name.split(' ', 1)
+            request.user.first_name = parts[0]
+            request.user.last_name = parts[1] if len(parts) > 1 else ''
+            request.user.save(update_fields=['first_name', 'last_name'])
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
