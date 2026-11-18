@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Appointment, Doctor, MedicalRecord, Patient, Prescription
+from django.utils import timezone
 
 
 def _build_initials(full_name, fallback='U'):
@@ -50,6 +51,11 @@ class PatientProfileSerializer(serializers.ModelSerializer):
     def get_id(self, patient):
         return patient.patient_id or f'A{patient.user_id:07d}'
 
+    def validate_date_of_birth(self, value):
+        if value and value > timezone.localdate():
+            raise serializers.ValidationError('Ngày sinh không được ở tương lai.')
+        return value
+
     def get_avatar_initials(self, patient):
         return _build_initials(patient.full_name, fallback='BN')
 
@@ -71,6 +77,11 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
 
     def get_doctor_code(self, doctor):
         return f'BS{doctor.id:05d}' if doctor.id else 'BS00000'
+
+    def validate_date_of_birth(self, value):
+        if value and value > timezone.localdate():
+            raise serializers.ValidationError('Ngày sinh không được ở tương lai.')
+        return value
 
     def get_specialization_name(self, doctor):
         return doctor.specialization.name if doctor.specialization else 'Chưa phân khoa'

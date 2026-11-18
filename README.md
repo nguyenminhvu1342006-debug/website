@@ -96,7 +96,7 @@ Trong terminal đã kích hoạt venv:
 ```powershell
 cd backend
 python manage.py migrate
-python manage.py seed_data
+python manage.py seed_data --include-receptionist
 ```
 
 `migrate` tạo bảng từ migration có trong repository, không tạo database MySQL.
@@ -111,9 +111,17 @@ Thành viên mới không cần chạy `makemigrations` khi model chưa thay đ�
 | `dr.sofia` | Sofia Kim | Ngoại khoa |
 | `dr.tran` | Trần | Nội khoa |
 | `demo_patient` | Demo Patient | Bệnh nhân thử nghiệm |
+| `demo_reception` | Demo Reception | Lễ tân (nhóm Receptionist) |
 
 Mật khẩu của các tài khoản **được tạo mới** là `ClinicDemo2026!`.
 Dùng `demo_patient` để thử giao diện bệnh nhân.
+`dr.jane` đăng nhập vào `/doctor/dashboard`; `demo_reception` vào `/reception`.
+Lệnh seed không có `--include-receptionist` vẫn chỉ tạo bác sĩ và bệnh nhân như trước.
+
+Luồng thử: bệnh nhân đặt lịch → lễ tân xem lịch trong ngày và check-in → bác sĩ
+thấy bệnh nhân chờ khám. Lễ tân chỉ được check-in lịch hôm nay ở trạng thái
+`Confirmed`; sau check-in, bệnh nhân không thể hủy lịch đó. Phần khám/lưu bệnh án
+hiện có được giữ nguyên để phát triển Medical Records riêng sau này.
 
 Seed chỉ chạy khi `DJANGO_DEBUG=True`. Chạy lại không ghi đè hồ sơ hoặc mật khẩu
 có sẵn và không tạo lịch hẹn. Trường hợp dữ liệu khớp không rõ ràng, lệnh báo lỗi
@@ -189,8 +197,49 @@ ban đầu. Lịch hẹn và thay đổi hồ sơ sau đó không tự đồng b
 ## Phạm vi hiện tại
 
 - Medical Records và Recent Visits chưa hoàn thiện; bảng Recent Visits còn dữ liệu tĩnh.
-- Frontend build bằng `npm run build`; lệnh lint hiện còn lỗi cần xử lý riêng.
-- Luồng đặt lịch chưa đảm bảo chống hai request đồng thời đặt cùng khung giờ.
+- Frontend build bằng `npm run build`, kiểm tra mã bằng `npm run lint`.
+- Đặt lịch dùng `doctor_id`, kiểm tra ngày/giờ ở server và dùng transaction/khóa
+  hàng trên MySQL. Kiểm tra đồng thời đã xác nhận hai bệnh nhân không thể đặt cùng
+  bác sĩ/khung giờ qua API. Sửa dữ liệu trực tiếp ngoài API không dùng cơ chế này.
 - Các lệnh và tài khoản mẫu ở đây dành cho phát triển. Triển khai thật cần cấu hình
   riêng cho host, HTTPS, secret key, database và tắt DEBUG; không dùng tài khoản mẫu.
 - Chưa xác nhận toàn bộ quy trình trên một bản clone sạch với MySQL trống.
+
+## Chạy kiểm thử
+
+Backend nhanh, dùng SQLite tạm và không truy cập database MySQL đang làm việc:
+
+```powershell
+# Từ thư mục gốc, đã kích hoạt venv
+python backend/manage.py test clinic_api --settings=backend.test_settings --noinput
+```
+
+Bài kiểm tra khóa đồng thời được bỏ qua trên SQLite vì cần MySQL thật. Nếu chạy
+`python manage.py test clinic_api` với cấu hình MySQL thông thường, Django sẽ tạo
+database test riêng; tài khoản MySQL phải có quyền tạo/xóa database test đó.
+
+Kiểm thử trình duyệt (cần Google Chrome đã cài):
+
+```powershell
+cd frontend
+npm ci
+npm run test:e2e
+```
+
+Playwright tự khởi động frontend cổng 4174 và backend cổng 8011. Backend dùng
+SQLite mới trong `.test-run/` cho mỗi lần chạy, không nạp seed vào MySQL của bạn.
+Mặc định dùng Python trong `backend/venv`; nếu venv ở vị trí khác, đặt biến
+`CLINIC_TEST_PYTHON` thành đường dẫn Python của venv trước khi chạy.
+Kết quả và ảnh kiểm tra nằm trong `frontend/test-results/` và được Git bỏ qua.
+
+Frontend có thể đổi địa chỉ API bằng `VITE_API_BASE_URL` trong
+`frontend/.env.local`, ví dụ `VITE_API_BASE_URL=http://127.0.0.1:8000/api/`.
+Backend phải cho phép origin frontend tương ứng khi đổi host/cổng.
+
+## Tham chiếu thiết kế
+
+[Mockup ĐATH_CNPM trên Figma](https://www.figma.com/design/OLGDcnT2iasJDWhMofmQ40)
+là tham chiếu thiết kế. Đợt sửa này hoàn thiện chức năng từ source đang có; việc
+đối chiếu đầy đủ kích thước, typography, asset và biểu đồ với mockup chưa hoàn tất
+vì Figma MCP báo hết lượt đọc của gói Starter. Không coi bản hiện tại là bản khớp
+hoàn toàn thiết kế hoặc đã sẵn sàng triển khai production.

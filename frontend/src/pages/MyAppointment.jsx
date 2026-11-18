@@ -1,35 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
+import useResource, { errorText } from '../hooks/useResource';
 import api from '../api';
-import { CalendarOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
-import { Spin, message, Button, Popconfirm, Avatar } from 'antd';
+import { CalendarOutlined } from '@ant-design/icons';
+import { Alert, Spin, message, Button, Popconfirm, Avatar, Tag } from 'antd';
 
 const MyAppointment = () => {
   const [activeTab, setActiveTab] = useState('Confirmed'); // 'Confirmed', 'Completed', 'Cancelled'
-  const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   const primaryTeal = '#4cb4b3';
   const darkText = '#333333';
 
-  const fetchAppointments = async (status) => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await api.get(`my-appointments/?status=${status}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAppointments(response.data);
-    } catch (error) {
-      console.error("Lỗi khi tải danh sách lịch hẹn:", error);
-      message.error("Không thể tải danh sách lịch hẹn.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAppointments(activeTab);
-  }, [activeTab]);
+  const { data, loading, error, reload } = useResource('my-appointments/', { status: activeTab });
+  const appointments = data || [];
 
   const handleCancel = async (id) => {
     try {
@@ -38,9 +20,9 @@ const MyAppointment = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       message.success('Đã hủy lịch hẹn thành công!');
-      fetchAppointments(activeTab); // Tải lại danh sách sau khi hủy
+      reload(); // Tải lại danh sách sau khi hủy
     } catch (error) {
-      message.error('Có lỗi xảy ra khi hủy lịch.');
+      message.error(errorText(error));
     }
   };
 
@@ -81,7 +63,7 @@ const MyAppointment = () => {
       </div>
 
       {/* Danh sách lịch hẹn */}
-      {loading ? (
+      {error ? <Alert type="error" title={error} action={<Button onClick={reload}>Thử lại</Button>} /> : loading ? (
         <div style={{ textAlign: 'center', padding: '40px 0' }}><Spin size="large" /></div>
       ) : appointments.length === 0 ? (
         <div style={{ backgroundColor: 'white', borderRadius: '15px', padding: '40px', textAlign: 'center', border: '1px dashed #d9d9d9' }}>
@@ -125,7 +107,8 @@ const MyAppointment = () => {
 
               {/* Nút thao tác (Chỉ hiện nút Cancel ở tab Upcoming/Confirmed) */}
               <div>
-                {activeTab === 'Confirmed' && (
+                {activeTab === 'Confirmed' && item.status === 'Checked-in' && <Tag color="cyan">Đã check-in</Tag>}
+                {activeTab === 'Confirmed' && item.status === 'Confirmed' && (
                   <Popconfirm
                     title="Hủy lịch khám"
                     description="Bạn có chắc chắn muốn hủy lịch hẹn này không?"

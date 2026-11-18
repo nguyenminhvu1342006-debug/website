@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../api';
+import { logout } from '../auth';
+import useResource, { errorText } from '../hooks/useResource';
 import BookAppointment from './BookAppointment'; 
 import MyAppointment from './MyAppointment';
 import MyProfile from './MyProfile';
 import Doctors from './Doctors';
-import { useNavigate, Outlet } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { 
   HomeOutlined, CalendarOutlined, ClockCircleOutlined, 
   FileTextOutlined, TeamOutlined, UserOutlined,
-  SearchOutlined, BellOutlined
+  SearchOutlined, BellOutlined, LogoutOutlined
 } from '@ant-design/icons';
 import { Input, Button, Avatar, Spin, Popconfirm, message, Alert } from 'antd';
 
@@ -23,7 +25,6 @@ const UserDashboard = () => {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState('');
-  const [upcomingError, setUpcomingError] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -48,8 +49,7 @@ const UserDashboard = () => {
   }, [activeMenu, navigate]);
   
   // State quản lý dữ liệu lịch hẹn gần nhất
-  const [upcoming, setUpcoming] = useState(null);
-  const [loadingUpcoming, setLoadingUpcoming] = useState(true);
+  const { data: upcoming, error: upcomingError, loading: loadingUpcoming, reload: fetchUpcomingAppointment } = useResource(activeMenu === 'Dashboard' ? 'upcoming-appointment/' : null);
 
   const menuItems = [
     { name: 'Dashboard', icon: <HomeOutlined /> },
@@ -66,36 +66,6 @@ const UserDashboard = () => {
     { date: 'Aug 18, 2026', doctor: 'Dr. Michael Chen', diagnosis: 'Dermatology Consult' },
   ];
 
-  // Tự động gọi API mỗi khi vào tab Dashboard
-  useEffect(() => {
-    if (activeMenu === 'Dashboard') {
-      fetchUpcomingAppointment();
-    }
-  }, [activeMenu]);
-
-  const fetchUpcomingAppointment = async () => {
-    setLoadingUpcoming(true);
-    setUpcomingError('');
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await api.get('upcoming-appointment/', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.status === 200) {
-        setUpcoming(response.data);
-      } else {
-        setUpcoming(null); // Trạng thái 204: Không có lịch
-      }
-    } catch (error) {
-      if (error.response?.status === 401) navigate('/login');
-      else setUpcomingError('Không thể tải lịch hẹn. Vui lòng thử lại.');
-      console.error("Lỗi lấy lịch hẹn:", error);
-      setUpcoming(null);
-    } finally {
-      setLoadingUpcoming(false);
-    }
-  };
   const handleCancel = async (appointmentId) => {
     try {
       const token = localStorage.getItem('accessToken');
@@ -105,12 +75,12 @@ const UserDashboard = () => {
       message.success('Đã hủy lịch hẹn thành công!');
       fetchUpcomingAppointment(); // Gọi lại API, thẻ lịch hẹn sẽ biến mất và hiện nút "Đặt lịch ngay"
     } catch (error) {
-      message.error('Có lỗi xảy ra khi hủy lịch.');
+      message.error(errorText(error));
     }
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#fcfcfc', fontFamily: 'Arial, sans-serif' }}>
+    <div className="legacy-workspace" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#fcfcfc', fontFamily: 'Arial, sans-serif' }}>
       
       {/* ================= LEFT SIDEBAR ================= */}
       <div style={{ width: '260px', backgroundColor: 'white', borderRight: '1px solid #eaeaea', display: 'flex', flexDirection: 'column', padding: '30px 0' }}>
@@ -143,6 +113,7 @@ const UserDashboard = () => {
             );
           })}
         </div>
+        <Button icon={<LogoutOutlined />} style={{ margin: 'auto 20px 0' }} onClick={() => { logout(); navigate('/login'); }}>Đăng xuất</Button>
       </div>
 
       {/* ================= MAIN CONTENT ================= */}
@@ -182,11 +153,12 @@ const UserDashboard = () => {
                   <Popconfirm
                     title="Hủy lịch khám"
                     description="Bạn có chắc chắn muốn hủy lịch hẹn này không?"
+                    disabled={upcoming.status === 'Checked-in'}
                     onConfirm={() => handleCancel(upcoming.id)}
                     okText="Có, hủy lịch"
                     cancelText="Không"
                   >
-                    <Button shape="round" type="text" style={{ color: '#ff4d4f', fontWeight: '500' }}>Cancel</Button>
+                    <Button disabled={upcoming.status === 'Checked-in'} shape="round" type="text" style={{ color: '#ff4d4f', fontWeight: '500' }}>{upcoming.status === 'Checked-in' ? 'Đã check-in' : 'Hủy lịch'}</Button>
                   </Popconfirm>
                 </div>
                 
@@ -217,7 +189,7 @@ const UserDashboard = () => {
 
         {/* Nếu click chọn 'Book Appointment' */}
         {activeMenu === 'Book Appointment' && (
-          <BookAppointment preSelectedDoctor={selectedDoctor} />
+          <BookAppointment key={selectedDoctor?.id || "booking"} preSelectedDoctor={selectedDoctor} onBooked={() => setActiveMenu("My Appointments")} />
         )}
         {activeMenu === 'My Appointments' && (
           <MyAppointment />

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'antd';
 import { MailOutlined, PhoneOutlined } from '@ant-design/icons';

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import api from '../api';
+import { useState } from 'react';
+import useResource from '../hooks/useResource';
 import { SearchOutlined } from '@ant-design/icons';
-import { Input, Select, Avatar, Spin, Button, Modal, message } from 'antd';
+import { Input, Select, Avatar, Spin, Button, Modal, Alert } from 'antd';
 
 const Doctors = ({ onSelectDoctorForBooking }) => {
-  const [doctors, setDoctors] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, error, reload } = useResource('doctors/');
+  const doctors = data || [];
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('All');
 
@@ -15,26 +15,6 @@ const Doctors = ({ onSelectDoctorForBooking }) => {
 
   const primaryTeal = '#4cb4b3';
   const darkText = '#333333';
-
-  useEffect(() => {
-    fetchDoctors();
-  }, []);
-
-  const fetchDoctors = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await api.get('doctors/', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setDoctors(response.data);
-    } catch (error) {
-      console.error("Lỗi tải danh sách bác sĩ:", error);
-      message.error("Không thể tải danh sách bác sĩ.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Hàm chuẩn hóa chuỗi: viết thường, bỏ tiền tố "Dr.", bỏ khoảng trắng thừa
   const normalizeStr = (str) => {
@@ -62,9 +42,6 @@ const Doctors = ({ onSelectDoctorForBooking }) => {
 
   // Xử lý khi bấm nút "Book Appointment": Lưu thông tin bác sĩ và chuyển tab sang Book Appointment
   const handleBookClick = (doctor) => {
-    localStorage.setItem('targetDoctorId', doctor.id);
-    localStorage.setItem('targetDoctorName', doctor.full_name || doctor.name);
-    localStorage.setItem('targetSpecialty', doctor.specialty);
 
     if (onSelectDoctorForBooking) {
         onSelectDoctorForBooking(doctor); 
@@ -104,7 +81,7 @@ const Doctors = ({ onSelectDoctorForBooking }) => {
       </div>
 
       {/* Lưới hiển thị danh sách bác sĩ */}
-      {loading ? (
+      {error ? <Alert type="error" title={error} action={<Button onClick={reload}>Thử lại</Button>} /> : loading ? (
         <div style={{ textAlign: 'center', padding: '50px 0' }}><Spin size="large" /></div>
       ) : filteredDoctors.length === 0 ? (
         <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '40px', textAlign: 'center', border: '1px dashed #d9d9d9' }}>
@@ -141,7 +118,7 @@ const Doctors = ({ onSelectDoctorForBooking }) => {
               </div>
 
               <div style={{ textAlign: 'center', fontSize: '13px', color: '#666' }}>
-                {doc.experience || 'Kinh nghiệm lâu năm'}
+                {doc.education || 'Thông tin đào tạo đang cập nhật'}
               </div>
 
               {/* Các nút bấm thao tác */}
@@ -202,18 +179,18 @@ const Doctors = ({ onSelectDoctorForBooking }) => {
                 {selectedDoctor.initials || 'DR'}
               </Avatar>
               <div>
-                <h3 style={{ margin: 0, fontSize: '18px', color: darkText }}>{selectedDoctor.full_name}</h3>
+                <h3 style={{ margin: 0, fontSize: '18px', color: darkText }}>{selectedDoctor.full_name || selectedDoctor.name}</h3>
                 <p style={{ margin: 0, color: primaryTeal, fontWeight: '500' }}>{selectedDoctor.specialty}</p>
               </div>
             </div>
             <hr style={{ border: 'none', borderTop: '1px solid #f0f0f0' }} />
             <div>
-              <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', color: darkText }}>Kinh nghiệm:</p>
-              <p style={{ margin: 0, color: '#666' }}>{selectedDoctor.experience || 'Đang cập nhật'}</p>
+              <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', color: darkText }}>Đào tạo:</p>
+              <p style={{ margin: 0, color: '#666' }}>{selectedDoctor.education || 'Đang cập nhật'}</p>
             </div>
             <div>
-              <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', color: darkText }}>Giới thiệu / Tiểu sử:</p>
-              <p style={{ margin: 0, color: '#666' }}>{selectedDoctor.bio || 'Bác sĩ chuyên khoa giàu kinh nghiệm, tận tâm với người bệnh tại phòng khám.'}</p>
+              <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', color: darkText }}>Chứng chỉ:</p>
+              <p style={{ margin: 0, color: '#666' }}>{selectedDoctor.certificate || 'Đang cập nhật'}</p>
             </div>
           </div>
         )}

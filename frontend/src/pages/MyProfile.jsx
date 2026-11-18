@@ -1,53 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
+import useResource, { errorText } from '../hooks/useResource';
 import api from '../api';
-import { Avatar, Button, Input, message, Spin } from 'antd';
+import { Avatar, Button, Input, message, Spin, Alert } from 'antd';
 import { CameraOutlined, UserOutlined } from '@ant-design/icons';
 
 const MyProfile = ({ onProfileUpdated }) => {
-  const [loading, setLoading] = useState(true);
+  const resource = useResource('profile/');
   const [saving, setSaving] = useState(false);
 
-  // Khởi tạo state cho các trường thông tin trong profile
-  const [profile, setProfile] = useState({
-    id: '',
-    full_name: '',
-    date_of_birth: '',
-    phone: '',
-    address: '',
-    blood_type: '',
-    allergies: '',
-    emergency_contact_name: '',
-    emergency_contact_phone: '',
-    avatar_initials: ''
-  });
+  const [draft, setProfile] = useState(null);
+  const profile = draft || (resource.data ? { ...resource.data, date_of_birth: resource.data.date_of_birth || '' } : {});
 
   const primaryTeal = '#4cb4b3';
   const darkText = '#333333';
 
-  // 1. Gọi API lấy thông tin profile của user hiện tại khi vào trang
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await api.get('profile/', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProfile({ ...response.data, date_of_birth: response.data.date_of_birth || '' });
-    } catch (error) {
-      console.error("Lỗi tải thông tin cá nhân:", error);
-      message.error("Không thể tải thông tin profile.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Xử lý thay đổi dữ liệu trong các ô input
   const handleChange = (field, value) => {
-    setProfile(prev => ({ ...prev, [field]: value }));
+    setProfile({ ...profile, [field]: value });
   };
 
   // 2. Lưu thay đổi khi bấm nút Save Changes
@@ -63,13 +32,14 @@ const MyProfile = ({ onProfileUpdated }) => {
       message.success('Cập nhật thông tin thành công!');
     } catch (error) {
       console.error("Lỗi cập nhật profile:", error);
-      message.error('Có lỗi xảy ra khi lưu thay đổi.');
+      message.error(errorText(error));
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
+  if (resource.error) return <Alert type="error" title={resource.error} action={<Button onClick={resource.reload}>Thử lại</Button>} />;
+  if (resource.loading) {
     return <div style={{ textAlign: 'center', padding: '60px' }}><Spin size="large" /></div>;
   }
 
@@ -87,7 +57,8 @@ const MyProfile = ({ onProfileUpdated }) => {
             </Avatar>
           </div>
           <Button 
-            icon={<CameraOutlined />} 
+            icon={<CameraOutlined />}
+            disabled title="Chức năng ảnh đại diện đang phát triển"
             shape="round" 
             style={{ borderColor: '#d9d9d9', color: '#555', fontWeight: '500', height: '40px', padding: '0 20px' }}
           >
@@ -120,7 +91,7 @@ const MyProfile = ({ onProfileUpdated }) => {
           <div>
             <label style={{ display: 'block', color: '#888', fontSize: '13px', marginBottom: '8px', fontWeight: '500' }}>Date of Birth</label>
             <Input 
-              value={profile.date_of_birth} 
+              type="date" max={new Date().toLocaleDateString("en-CA")} value={profile.date_of_birth}
               onChange={(e) => handleChange('date_of_birth', e.target.value)}
               style={{ borderRadius: '10px', height: '45px', border: '1px solid #eaeaea' }} 
             />

@@ -1,6 +1,10 @@
 from django.contrib import admin
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
+from clinic_api.reception import (
+    ReceptionPatientsView, ReceptionAppointmentsView,
+    ReceptionAppointmentActionView, ReceptionProfileView,
+)
 from clinic_api.views import (
     AvailableSlotsView,
     BookAppointmentView,
@@ -20,6 +24,10 @@ from clinic_api.views import (
 )
 
 urlpatterns = [
+    path('api/reception/patients/', ReceptionPatientsView.as_view()),
+    path('api/reception/appointments/', ReceptionAppointmentsView.as_view()),
+    path('api/reception/appointments/<int:pk>/', ReceptionAppointmentActionView.as_view()),
+    path('api/reception/profile/', ReceptionProfileView.as_view()),
     path('admin/', admin.site.urls),
     # API Đăng nhập & thông tin tài khoản hiện tại
     path('api/login/', CustomLoginView.as_view(), name='token_obtain_pair'),

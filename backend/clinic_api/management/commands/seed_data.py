@@ -2,6 +2,7 @@
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -19,6 +20,9 @@ DOCTORS = (
 
 class Command(BaseCommand):
     help = 'Create development specialties, doctors and a demo patient; preserve existing data.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--include-receptionist', action='store_true', help='Also create demo_reception for development.')
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -74,6 +78,19 @@ class Command(BaseCommand):
             patient_user.save()
             Patient.objects.create(user=patient_user, full_name='Demo Patient')
             created_users.append('demo_patient')
+
+        if options.get('include_receptionist'):
+            receptionist = User.objects.filter(username='demo_reception').first()
+            if receptionist:
+                if not receptionist.groups.filter(name='Receptionist').exists():
+                    raise CommandError('demo_reception already exists without the Receptionist role.')
+            else:
+                receptionist = User(username='demo_reception', first_name='Demo', last_name='Reception')
+                receptionist.set_password(DEMO_PASSWORD)
+                receptionist.save()
+                group, _ = Group.objects.get_or_create(name='Receptionist')
+                receptionist.groups.add(group)
+                created_users.append('demo_reception')
 
         self.stdout.write(self.style.SUCCESS(
             f'Seed complete: {created_doctors} doctors and {len(created_users)} accounts created. '

@@ -8,6 +8,15 @@ python manage.py migrate
 python manage.py seed_data
 ```
 
+Để tạo thêm tài khoản lễ tân thử nghiệm, dùng:
+
+```powershell
+python manage.py seed_data --include-receptionist
+```
+
+Tài khoản mới `demo_reception` thuộc nhóm `Receptionist`, mật khẩu `ClinicDemo2026!`.
+Đăng nhập sẽ mở `/reception`. Không cấp quyền quản trị cho tài khoản này.
+
 Lệnh chỉ hoạt động khi `DEBUG=True`. Lệnh không tạo lịch hẹn hay tài khoản quản trị.
 
 | Tài khoản được tạo nếu chưa có dữ liệu tương ứng | Hồ sơ | Chuyên khoa |

@@ -119,7 +119,7 @@ const DoctorDashboard = () => {
   const todayApps = dashboardData?.today_appointments || [];
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#fcfcfc', fontFamily: 'Arial, sans-serif' }}>
+    <div className="legacy-workspace" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#fcfcfc', fontFamily: 'Arial, sans-serif' }}>
       {/* ================= LEFT SIDEBAR ================= */}
       <div
         style={{

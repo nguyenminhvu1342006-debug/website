@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
+  Alert,
   Button,
   DatePicker,
   Empty,
@@ -10,7 +11,6 @@ import {
   Spin,
   Table,
   Tag,
-  message,
 } from 'antd';
 import {
   FileTextOutlined,
@@ -18,7 +18,7 @@ import {
   MedicineBoxOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import api from '../../api';
+import useResource from '../../hooks/useResource';
 import ExaminationModal from './ExaminationModal';
 
 const PRIMARY_TEAL = '#4cb4b3';
@@ -32,9 +32,6 @@ const STATUS_META = {
 };
 
 const DoctorSchedule = ({ onViewPatientHistory, onViewRecordDetail }) => {
-  const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [reloadTick, setReloadTick] = useState(0);
 
   const [rangeFilter, setRangeFilter] = useState('today');
   const [selectedDate, setSelectedDate] = useState(null);
@@ -43,36 +40,11 @@ const DoctorSchedule = ({ onViewPatientHistory, onViewRecordDetail }) => {
 
   const [examTarget, setExamTarget] = useState(null);
 
-  useEffect(() => {
-    let active = true;
-    const params = { status: statusFilter };
-    if (selectedDate) {
-      params.date = selectedDate.format('YYYY-MM-DD');
-    } else {
-      params.range = rangeFilter;
-    }
-    if (searchTerm.trim()) {
-      params.search = searchTerm.trim();
-    }
-
-    api
-      .get('doctor/appointments/', { params })
-      .then(({ data }) => {
-        if (active) setAppointments(data);
-      })
-      .catch((error) => {
-        if (active) {
-          message.error(error.response?.data?.detail || 'Không thể tải danh sách lịch khám.');
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [rangeFilter, selectedDate, statusFilter, searchTerm, reloadTick]);
+  const params = { status: statusFilter, search: searchTerm.trim() };
+  if (selectedDate) params.date = selectedDate.format('YYYY-MM-DD');
+  else params.range = rangeFilter;
+  const { data, loading, error, reload } = useResource('doctor/appointments/', params);
+  const appointments = data || [];
 
   const columns = [
     {
@@ -245,7 +217,7 @@ const DoctorSchedule = ({ onViewPatientHistory, onViewRecordDetail }) => {
           overflow: 'hidden',
         }}
       >
-        {loading ? (
+        {error ? <Alert type="error" title={error} action={<Button onClick={reload}>Thử lại</Button>} /> : loading ? (
           <div style={{ textAlign: 'center', padding: '50px 0' }}>
             <Spin size="large" />
           </div>
@@ -267,10 +239,7 @@ const DoctorSchedule = ({ onViewPatientHistory, onViewRecordDetail }) => {
         open={Boolean(examTarget)}
         appointment={examTarget}
         onClose={() => setExamTarget(null)}
-        onSuccess={() => {
-          setLoading(true);
-          setReloadTick((t) => t + 1);
-        }}
+        onSuccess={reload}
       />
     </div>
   );

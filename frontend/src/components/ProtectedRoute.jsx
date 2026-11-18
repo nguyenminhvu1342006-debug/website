@@ -1,61 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Spin } from 'antd';
-import api from '../api';
+import { Alert, Button, Spin } from 'antd';
+import useResource from '../hooks/useResource';
+import { roleHome } from '../auth';
 
-const ProtectedRoute = ({ allowedRoles, children }) => {
+export default function ProtectedRoute({ allowedRoles, children }) {
+  const [expired, setExpired] = useState(false);
   const token = localStorage.getItem('accessToken');
-  const cachedRole = localStorage.getItem('userRole');
-  const [role, setRole] = useState(cachedRole);
-  const [checking, setChecking] = useState(Boolean(token && !cachedRole));
-  const [unauthorized, setUnauthorized] = useState(false);
-
+  const { data, error, loading, reload } = useResource(token ? 'me/' : null);
   useEffect(() => {
-    if (!token) return;
-    let active = true;
-
-    api
-      .get('me/')
-      .then(({ data }) => {
-        if (!active) return;
-        localStorage.setItem('userRole', data.role);
-        setRole(data.role);
-      })
-      .catch((error) => {
-        if (!active) return;
-        if (error.response?.status === 401) {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('userRole');
-          setUnauthorized(true);
-        }
-      })
-      .finally(() => {
-        if (active) setChecking(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [token]);
-
-  if (!token || unauthorized) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (checking) {
-    return (
-      <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center' }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
-
-  if (allowedRoles && role && !allowedRoles.includes(role)) {
-    return <Navigate to={role === 'doctor' ? '/doctor/dashboard' : '/dashboard'} replace />;
-  }
-
+    const expire = () => setExpired(true);
+    window.addEventListener('auth-expired', expire);
+    return () => window.removeEventListener('auth-expired', expire);
+  }, []);
+  if (!token || expired) return <Navigate to="/login" replace />;
+  if (loading) return <div className="page-loading"><Spin size="large" /></div>;
+  if (error) return <div className="page-loading"><Alert type="error" title={error}
+    action={<Button onClick={reload}>Thử lại</Button>} /></div>;
+  if (!data?.role) return <Navigate to="/login" replace />;
+  if (!allowedRoles.includes(data.role)) return <Navigate to={roleHome(data.role)} replace />;
   return children;
-};
-
-export default ProtectedRoute;
+}

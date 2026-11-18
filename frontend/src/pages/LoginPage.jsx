@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import { roleHome, logout } from '../auth';
 import { Input, Button, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 
@@ -45,9 +46,10 @@ const LoginPage = () => {
       message.success('Đăng nhập thành công!');
 
       // Chuyển hướng người dùng theo vai trò
-      navigate(resolvedRole === 'doctor' ? '/doctor/dashboard' : '/dashboard');
+      navigate(roleHome(resolvedRole), { replace: true });
       
     } catch (error) {
+      logout();
       console.error("Lỗi đăng nhập:", error);
       const serverMsg = error.response?.data?.detail;
       message.error(serverMsg || 'Tài khoản hoặc mật khẩu không chính xác!');

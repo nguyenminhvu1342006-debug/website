@@ -1,0 +1,66 @@
+:root { --clinic-primary: #4cb4b3; --clinic-ink: #333; --clinic-muted: #7b8492; --clinic-border: #e7eaf0; }
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--clinic-ink); background: #f8f9fb; font: 14px/1.5 Arial, sans-serif; }
+#root { min-height: 100vh; width: 100%; max-width: none; margin: 0; border: 0; text-align: left; }
+button, input { font: inherit; }
+button, a, input { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible { outline: 3px solid #95d8d7; outline-offset: 3px; }
+h1, h2, h3 { color: var(--clinic-ink); }
+.workspace { display: flex; min-height: 100vh; }
+.workspace-sidebar { width: 280px; flex-shrink: 0; background: white; border-right: 1px solid var(--clinic-border); padding: 32px 24px; display: flex; flex-direction: column; gap: 32px; }
+.clinic-brand { display: flex; gap: 12px; align-items: center; color: var(--clinic-ink); text-decoration: none; }
+.clinic-brand strong { font: 26px Georgia, serif; display: block; }
+.clinic-brand small { display: block; font-size: 11px; color: var(--clinic-muted); }
+.clinic-logo { background: var(--clinic-primary); border-radius: 50%; color: white; padding: 12px; font-size: 22px; }
+.workspace-sidebar nav { display: flex; flex-direction: column; gap: 12px; }
+.workspace-sidebar nav button { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: none; border: 0; border-radius: 12px; color: #667085; text-align: left; cursor: pointer; }
+.workspace-sidebar nav button.active { background: var(--clinic-primary); color: #082b2e; }
+.workspace-sidebar .logout-button { margin-top: auto; }
+.workspace-main { flex: 1; min-width: 0; }
+.workspace-header { min-height: 80px; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; background: white; border-bottom: 1px solid var(--clinic-border); }
+.workspace-header h1 { margin: 0; font: 22px Georgia, serif; }
+.workspace-content { padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+.panel { background: white; border-radius: 18px; padding: 28px; border: 1px solid #f0f1f4; box-shadow: 0 4px 15px #00000005; }
+.panel h2 { font: 23px Georgia, serif; margin: 0 0 20px; }
+.stack { display: flex; flex-direction: column; gap: 24px; }
+.full-width { width: 100%; }
+.toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+.toolbar .ant-input-search { width: min(100%, 360px); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.page-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.doctor-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-top: 24px; }
+.doctor-choice { background: white; border: 1px solid var(--clinic-border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; cursor: pointer; text-align: left; }
+.doctor-choice.selected { border: 2px solid var(--clinic-primary); background: #eef8f8; }
+.doctor-choice .ant-avatar { background: #e6f4f4; color: #328b8b; }
+.booking-date-grid { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 32px; }
+.booking-calendar .ant-radio-group { display: none; }
+.slot-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.slot-grid .ant-btn { min-width: 90px; border-radius: 24px; }
+.booking-summary { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.booking-summary h2 { margin-bottom: 8px; }
+.legacy-workspace { width: 100%; }
+.legacy-workspace > div:first-child { flex-shrink: 0; }
+.legacy-workspace > div:nth-child(2) { min-width: 0; }
+@media (max-width: 900px) {
+  .workspace-sidebar { width: 220px; padding: 24px 14px; }
+  .workspace-content { padding: 20px; }
+  .legacy-workspace > div:first-child { width: 210px !important; }
+  .legacy-workspace > div:nth-child(2) { padding: 24px !important; }
+  .legacy-workspace > div:nth-child(2) > div:first-child { flex-wrap: wrap; gap: 16px; }
+  .booking-date-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .workspace { flex-direction: column; }
+  .workspace-sidebar { width: 100%; padding: 16px; gap: 16px; border-bottom: 1px solid var(--clinic-border); }
+  .workspace-sidebar nav { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .workspace-sidebar nav button { padding: 10px; }
+  .workspace-sidebar .logout-button { align-self: flex-end; }
+  .workspace-header, .workspace-content { padding: 16px; }
+  .panel { padding: 20px; }
+  .booking-summary { align-items: stretch; flex-direction: column; }
+  .legacy-workspace { flex-direction: column !important; }
+  .legacy-workspace > div:first-child { width: 100% !important; padding: 16px 0 !important; }
+  .legacy-workspace > div:first-child > div:last-child { flex-wrap: wrap; }
+  .legacy-workspace > div:nth-child(2) { padding: 16px !important; }
+  .legacy-workspace [style*="grid-template-columns: repeat(4"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}

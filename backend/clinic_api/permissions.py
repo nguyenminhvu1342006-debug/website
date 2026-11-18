@@ -12,3 +12,21 @@ class IsDoctor(BasePermission):
             and request.user.is_authenticated
             and hasattr(request.user, 'doctor_profile')
         )
+
+
+class IsReceptionist(BasePermission):
+    message = 'Chỉ lễ tân hoặc quản trị viên được thực hiện thao tác này.'
+
+    def has_permission(self, request, view):
+        return bool(request.user.is_authenticated and (
+            request.user.is_superuser
+            or request.user.groups.filter(name='Receptionist').exists()
+        ))
+
+
+class IsPatient(BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user.is_authenticated
+                    and not hasattr(request.user, 'doctor_profile')
+                    and not request.user.is_superuser
+                    and not request.user.groups.filter(name='Receptionist').exists())

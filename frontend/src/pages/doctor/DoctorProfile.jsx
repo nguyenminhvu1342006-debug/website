@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Avatar, Button, Input, Spin, message } from 'antd';
+import { Avatar, Button, Input, Spin, message, Alert } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import api from '../../api';
+import { errorText } from '../../hooks/useResource';
 
 const PRIMARY_TEAL = '#4cb4b3';
 const DARK_TEXT = '#333333';
 
 const DoctorProfile = ({ onProfileUpdated }) => {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadTick, setReloadTick] = useState(0);
   const [saving, setSaving] = useState(false);
 
   const [profile, setProfile] = useState({
@@ -29,10 +32,9 @@ const DoctorProfile = ({ onProfileUpdated }) => {
       .then(({ data }) => {
         if (!active) return;
         setProfile({ ...data, date_of_birth: data.date_of_birth || '' });
+        setLoadError('');
       })
-      .catch(() => {
-        if (active) message.error('Không thể tải thông tin hồ sơ bác sĩ.');
-      })
+      .catch((error) => { if (active) setLoadError(errorText(error)); })
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -40,7 +42,7 @@ const DoctorProfile = ({ onProfileUpdated }) => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadTick]);
 
   const handleChange = (field, value) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -62,13 +64,14 @@ const DoctorProfile = ({ onProfileUpdated }) => {
       onProfileUpdated?.(data);
       message.success('Cập nhật hồ sơ bác sĩ thành công!');
     } catch (error) {
-      const detail = error.response?.data?.date_of_birth?.[0] || 'Có lỗi xảy ra khi lưu thay đổi.';
+      const detail = errorText(error);
       message.error(detail);
     } finally {
       setSaving(false);
     }
   };
 
+  if (loadError) return <Alert type="error" title={loadError} action={<Button onClick={() => { setLoading(true); setLoadError(''); setReloadTick((value) => value + 1); }}>Thử lại</Button>} />;
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '60px' }}>
