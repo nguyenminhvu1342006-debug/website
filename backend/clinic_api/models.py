@@ -46,6 +46,23 @@ class Doctor(models.Model):
         spec_name = self.specialization.name if self.specialization else "Chưa phân khoa"
         return f"Dr. {self.full_name} - {spec_name}"
 
+# 2b. HỒ SƠ LỄ TÂN (RECEPTIONIST) - vai trò vẫn xác định bằng nhóm "Receptionist";
+#     bảng này chỉ lưu thông tin nhân viên & phân công (màn hình Staff Profile).
+class Receptionist(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='receptionist_profile')
+    phone = models.CharField(max_length=20, blank=True)
+    position = models.CharField(max_length=100, default='Front Desk Receptionist')
+    assigned_counter = models.CharField(max_length=50, blank=True)
+    department = models.CharField(max_length=100, blank=True)
+    current_shift = models.CharField(max_length=100, blank=True)
+
+    @property
+    def staff_code(self):
+        return f"REP-{self.user.date_joined.year}-{self.user_id:02d}"
+
+    def __str__(self):
+        return f"Lễ tân {self.user.get_full_name() or self.user.username}"
+
 # 3. LỊCH HẸN (APPOINTMENT) - Kế thừa từ chức năng cũ
 class Appointment(models.Model):
     STATUS_CHOICES = [
@@ -59,6 +76,8 @@ class Appointment(models.Model):
     date = models.DateField()
     time = models.TimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Confirmed')
+    # UC-09: số thứ tự hàng chờ, cấp khi Lễ tân check-in (đánh số lại từ 1 cho mỗi bác sĩ mỗi ngày)
+    queue_number = models.PositiveSmallIntegerField(null=True, blank=True)
     
     def __str__(self):
         return f"Hẹn khám: {self.patient.username} gặp {self.doctor.full_name} ({self.date} {self.time})"

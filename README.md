@@ -136,6 +136,20 @@ thấy bệnh nhân chờ khám. Lễ tân chỉ được check-in lịch hôm n
 `Confirmed`; sau check-in, bệnh nhân không thể hủy lịch đó. Khi bác sĩ hoàn tất
 khám, bệnh án và đơn thuốc xuất hiện trong Medical Records của bệnh nhân.
 
+Giao diện Lễ tân (`/reception`, theo UI mockup) gồm 5 trang:
+
+| Trang | Đường dẫn | Use case |
+| --- | --- | --- |
+| Patient Booking | `/reception` | UC-08 Đặt lịch hộ: tra bệnh nhân theo SĐT/PID, chọn chuyên khoa, bác sĩ, ngày giờ trống |
+| Check-in | `/reception/check-in` | UC-09: tìm theo tên/SĐT/mã lịch hẹn (`#12`), check-in cấp số thứ tự hàng chờ và in phiếu; đổi lịch, hủy lịch |
+| Register | `/reception/register` | UC-10: tạo tài khoản bệnh nhân; báo trùng SĐT và gợi ý mở hồ sơ cũ |
+| Doctors | `/reception/doctors` | Xem giờ trống/đã đặt của từng bác sĩ, đặt nhanh một khung giờ |
+| Staff Profile | `/reception/profile` | Hồ sơ nhân viên lễ tân (quầy, bộ phận, ca trực) |
+
+Khi Lễ tân đăng ký bệnh nhân, tên đăng nhập mặc định là số điện thoại (vd: `0902123456`).
+Nếu để trống mật khẩu, hệ thống tự sinh mật khẩu ban đầu và chỉ hiển thị một lần để
+Lễ tân đưa cho bệnh nhân (thay cho bước gửi SMS trong UC-10).
+
 Seed chỉ chạy khi `DJANGO_DEBUG=True`. Chạy lại không ghi đè hồ sơ hoặc mật khẩu
 có sẵn và không tạo lịch hẹn. Trường hợp dữ liệu khớp không rõ ràng, lệnh báo lỗi
 và hoàn tác lần chạy. Xem thêm [hướng dẫn seed](backend/clinic_api/management/commands/SEED_DATA.md).
