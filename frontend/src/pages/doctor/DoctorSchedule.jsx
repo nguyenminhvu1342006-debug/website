@@ -107,6 +107,7 @@ const DoctorSchedule = ({ onViewPatientHistory, onViewRecordDetail }) => {
         <Space>
           {app.status === 'Checked-in' && (
             <Button
+              aria-label="Khám bệnh"
               type="primary"
               icon={<MedicineBoxOutlined />}
               onClick={() => setExamTarget(app)}
@@ -197,7 +198,8 @@ const DoctorSchedule = ({ onViewPatientHistory, onViewRecordDetail }) => {
           />
           <Input
             prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            placeholder="Tìm bệnh nhân / SĐT..."
+            aria-label="Tìm bệnh nhân theo ID, họ tên, tài khoản hoặc số điện thoại"
+            placeholder="ID, tên, tài khoản hoặc SĐT"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             allowClear

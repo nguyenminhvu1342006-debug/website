@@ -5,6 +5,7 @@ from clinic_api.reception import (
     ReceptionPatientsView, ReceptionAppointmentsView,
     ReceptionAppointmentActionView, ReceptionProfileView,
 )
+from clinic_api.records import PatientMedicalRecordListView, PatientMedicalRecordDetailView
 from clinic_api.views import (
     AvailableSlotsView,
     BookAppointmentView,
@@ -24,6 +25,8 @@ from clinic_api.views import (
 )
 
 urlpatterns = [
+    path('api/my-records/', PatientMedicalRecordListView.as_view(), name='patient_records'),
+    path('api/my-records/<int:pk>/', PatientMedicalRecordDetailView.as_view(), name='patient_record_detail'),
     path('api/reception/patients/', ReceptionPatientsView.as_view()),
     path('api/reception/appointments/', ReceptionAppointmentsView.as_view()),
     path('api/reception/appointments/<int:pk>/', ReceptionAppointmentActionView.as_view()),

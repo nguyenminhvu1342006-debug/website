@@ -36,7 +36,7 @@ test('three roles stay isolated across tabs in the same browser', async ({ conte
   expect((await identity(patient)).username).toBe('demo_patient');
   expect((await identity(doctor)).username).toBe('dr.jane');
 
-  await reception.getByRole('button', { name: 'Đăng xuất' }).click();
+  await reception.getByRole('button', { name: 'Log Out' }).click();
   await expect(reception).toHaveURL(/\/login$/);
   expect((await identity(patient)).username).toBe('demo_patient');
   expect((await identity(doctor)).username).toBe('dr.jane');
@@ -66,9 +66,9 @@ test('reception checks in patient and doctor sees waiting patient', async ({ pag
   await expect(page).toHaveURL(/\/reception$/);
   await expect(page.getByRole('cell', { name: 'Jane Doe', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('reception-desktop.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Check-in', exact: true }).click();
+  await page.getByRole('row').filter({ hasText: 'Demo Patient' }).getByRole('button', { name: 'Check-in', exact: true }).click();
   await expect(page.getByText('Chờ khám', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Đăng xuất' }).click();
+  await page.getByRole('button', { name: 'Log Out' }).click();
   await login(page, 'dr.jane');
   await expect(page).toHaveURL(/\/doctor\/dashboard$/);
   await expect(page.getByRole('button', { name: 'Bắt đầu khám ngay' })).toBeVisible();
@@ -78,13 +78,28 @@ test('reception checks in patient and doctor sees waiting patient', async ({ pag
 test('reception can register a new patient through the form', async ({ page }) => {
   await login(page, 'demo_reception');
   await expect(page).toHaveURL(/\/reception$/);
-  await page.getByRole('button', { name: 'Đăng ký bệnh nhân', exact: true }).click();
+  await page.getByRole('button', { name: 'Patient Registration', exact: true }).click();
   await page.getByRole('button', { name: 'Đăng ký bệnh nhân mới' }).click();
   await page.getByLabel('Họ và tên', { exact: true }).fill('Browser Registered');
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill('browser_registered');
   await page.getByLabel('Mật khẩu ban đầu', { exact: true }).fill('ClinicGuest!2026');
   await page.getByRole('button', { name: 'Tạo tài khoản', exact: true }).click();
   await expect(page.getByRole('cell', { name: 'Browser Registered', exact: true })).toBeVisible();
+  const patientCode = await page.getByRole('row').filter({ hasText: 'Browser Registered' }).getByRole('cell').first().innerText();
+  await page.getByRole('navigation').getByRole('button', { name: 'Book Appointment', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Đăng ký bệnh nhân mới' })).toHaveCount(0);
+  const search = page.getByPlaceholder('ID, tên, tài khoản, SĐT hoặc địa chỉ');
+  await expect(search).toHaveCount(1);
+  const results = page.waitForResponse((response) => response.url().includes('/reception/patients/?search=')
+    && new URL(response.url()).searchParams.get('search') === patientCode && response.status() === 200);
+  await search.fill(patientCode);
+  const patients = await (await results).json();
+  expect(patients.map((patient) => patient.username)).toEqual(['browser_registered']);
+  await page.locator('.ant-select-item-option-content').filter({ hasText: 'Browser Registered' }).click();
+  await expect(search).toHaveValue(new RegExp(patientCode));
+  await expect(page.getByRole('heading', { name: 'Chọn bác sĩ và chuyên khoa' })).toBeVisible();
+  await search.fill('');
+  await expect(page.getByRole('heading', { name: 'Chọn bác sĩ và chuyên khoa' })).toHaveCount(0);
 });
 
 test('mobile receptionist workspace fits viewport', async ({ page }, testInfo) => {
@@ -129,4 +144,51 @@ test('patient can select doctor, date and available slot then book', async ({ pa
   await page.getByRole('button', { name: '09:30', exact: true }).click();
   await page.getByRole('button', { name: 'Xác nhận', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'My Appointments' })).toBeVisible();
+});
+
+test('medical records flow from reception check-in to doctor and patient', async ({ page, context }, testInfo) => {
+  await login(page, 'demo_reception');
+  await expect(page).toHaveURL(/\/reception$/);
+  const row = page.getByRole('row').filter({ hasText: 'Medical Browser Patient' });
+  await row.getByRole('button', { name: 'Check-in', exact: true }).click();
+  await expect(row.getByText('Chờ khám', { exact: true })).toBeVisible();
+
+  const doctor = await context.newPage();
+  await login(doctor, 'dr.marcus');
+  await expect(doctor).toHaveURL(/\/doctor\/dashboard$/);
+  await doctor.getByText('My Schedule', { exact: true }).first().click();
+  await doctor.getByRole('row').filter({ hasText: 'Medical Browser Patient' }).getByRole('button', { name: 'Khám bệnh', exact: true }).click();
+  const exam = doctor.getByRole('dialog');
+  await exam.getByPlaceholder('Nhập kết luận chẩn đoán của bác sĩ...').fill('Browser test diagnosis');
+  await exam.getByPlaceholder('Tên thuốc (VD: Paracetamol 500mg)').fill('Browser test medicine');
+  await exam.getByPlaceholder('Liều lượng (VD: 1 viên x 3)').fill('Test dosage');
+  await exam.getByPlaceholder('Cách dùng (VD: Sau ăn)').fill('Test instructions');
+  await exam.getByPlaceholder('Chế độ ăn uống, sinh hoạt, lịch tái khám...').fill('Browser follow-up notes');
+  await exam.getByRole('button', { name: 'Hoàn thành khám & Lưu bệnh án' }).click();
+  await expect(exam).toHaveCount(0);
+  await doctor.getByText('Medical Records', { exact: true }).first().click();
+  await expect(doctor.getByText('Browser test diagnosis', { exact: false })).toBeVisible();
+  await doctor.getByRole('button', { name: 'Xem chi tiết', exact: true }).click();
+  await expect(doctor.getByRole('dialog').getByText('Browser test medicine', { exact: true })).toBeVisible();
+  await doctor.screenshot({ path: testInfo.outputPath('doctor-medical-record.png'), fullPage: true, animations: 'disabled' });
+
+  const patient = await context.newPage();
+  await login(patient, 'demo_medical');
+  await expect(patient).toHaveURL(/\/dashboard$/);
+  await expect(patient.getByRole('cell', { name: 'Browser test diagnosis', exact: true })).toBeVisible();
+  await patient.getByText('Medical Records', { exact: true }).first().click();
+  await patient.getByRole('button', { name: 'Xem chi tiết', exact: true }).click();
+  const detail = patient.getByRole('dialog');
+  await expect(detail.getByText('Browser test medicine', { exact: true })).toBeVisible();
+  await expect(detail.getByText('Test dosage', { exact: true })).toBeVisible();
+  await expect(detail.getByText('Browser follow-up notes', { exact: true })).toBeVisible();
+  await patient.screenshot({ path: testInfo.outputPath('patient-medical-record.png'), fullPage: true, animations: 'disabled' });
+  await patient.evaluate(() => document.body.classList.add('printing-record'));
+  await patient.pdf({ path: testInfo.outputPath('patient-medical-record.pdf'), format: 'A4' });
+  await patient.evaluate(() => document.body.classList.remove('printing-record'));
+  await detail.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await patient.getByText('My Appointments', { exact: true }).first().click();
+  await patient.getByRole('button', { name: 'Completed', exact: true }).click();
+  await patient.getByRole('button', { name: 'Xem bệnh án', exact: true }).click();
+  await expect(patient.getByRole('dialog').getByText('Browser test diagnosis', { exact: true })).toBeVisible();
 });
