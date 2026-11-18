@@ -18,10 +18,10 @@ h1, h2, h3 { color: var(--clinic-ink); }
 .workspace-sidebar .logout-button { margin-top: auto; }
 .workspace-main { flex: 1; min-width: 0; }
 .workspace-header { min-height: 80px; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; background: white; border-bottom: 1px solid var(--clinic-border); }
-.workspace-header h1 { margin: 0; font: 22px Georgia, serif; }
+.workspace-header h1 { margin: 0; font: 22px/1.4 Arial, sans-serif; }
 .workspace-content { padding: 32px; display: flex; flex-direction: column; gap: 24px; }
 .panel { background: white; border-radius: 18px; padding: 28px; border: 1px solid #f0f1f4; box-shadow: 0 4px 15px #00000005; }
-.panel h2 { font: 23px Georgia, serif; margin: 0 0 20px; }
+.panel h2 { font: 23px/1.4 Arial, sans-serif; margin: 0 0 20px; }
 .stack { display: flex; flex-direction: column; gap: 24px; }
 .full-width { width: 100%; }
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }

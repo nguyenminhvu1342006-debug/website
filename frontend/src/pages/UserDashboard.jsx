@@ -27,7 +27,7 @@ const UserDashboard = () => {
   const [profileError, setProfileError] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
+    const token = sessionStorage.getItem('accessToken');
     if (!token) {
       navigate('/login');
       return;
@@ -68,7 +68,7 @@ const UserDashboard = () => {
 
   const handleCancel = async (appointmentId) => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       await api.post(`cancel/${appointmentId}/`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });

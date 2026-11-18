@@ -15,7 +15,7 @@ const MyAppointment = () => {
 
   const handleCancel = async (id) => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       await api.post(`cancel/${id}/`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });

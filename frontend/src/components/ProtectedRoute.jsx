@@ -6,7 +6,7 @@ import { roleHome } from '../auth';
 
 export default function ProtectedRoute({ allowedRoles, children }) {
   const [expired, setExpired] = useState(false);
-  const token = localStorage.getItem('accessToken');
+  const token = sessionStorage.getItem('accessToken');
   const { data, error, loading, reload } = useResource(token ? 'me/' : null);
   useEffect(() => {
     const expire = () => setExpired(true);

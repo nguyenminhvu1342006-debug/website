@@ -5,7 +5,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
+  const token = sessionStorage.getItem('accessToken');
   if (token && !['login/', 'token/refresh/'].includes(config.url) && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -18,13 +18,13 @@ api.interceptors.response.use((response) => response, async (error) => {
   if (error.response?.status !== 401 || !config || config._retried
       || ['login/', 'token/refresh/'].includes(config.url)) return Promise.reject(error);
   config._retried = true;
-  const refresh = localStorage.getItem('refreshToken');
+  const refresh = sessionStorage.getItem('refreshToken');
   if (refresh) {
     try {
       refreshing ||= axios.post(`${api.defaults.baseURL.replace(/\/$/, '')}/token/refresh/`, { refresh })
         .then(({ data }) => {
-          localStorage.setItem('accessToken', data.access);
-          if (data.refresh) localStorage.setItem('refreshToken', data.refresh);
+          sessionStorage.setItem('accessToken', data.access);
+          if (data.refresh) sessionStorage.setItem('refreshToken', data.refresh);
           return data.access;
         }).finally(() => { refreshing = null; });
       const token = await refreshing;
@@ -34,7 +34,7 @@ api.interceptors.response.use((response) => response, async (error) => {
       if (!refreshError.response || refreshError.response.status >= 500) return Promise.reject(refreshError);
     }
   }
-  ['accessToken', 'refreshToken', 'userRole'].forEach((key) => localStorage.removeItem(key));
+  ['accessToken', 'refreshToken', 'userRole'].forEach((key) => sessionStorage.removeItem(key));
   window.dispatchEvent(new Event('auth-expired'));
   return Promise.reject(error);
 });

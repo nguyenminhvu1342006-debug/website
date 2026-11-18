@@ -23,7 +23,7 @@ const MyProfile = ({ onProfileUpdated }) => {
   const handleSaveChanges = async () => {
     setSaving(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       const response = await api.put('profile/update/', profile, {
         headers: { Authorization: `Bearer ${token}` }
       });

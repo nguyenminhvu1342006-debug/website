@@ -7,6 +7,46 @@ async function login(page, username) {
   await page.getByRole('button', { name: 'Sign In' }).click();
 }
 
+test('three roles stay isolated across tabs in the same browser', async ({ context }) => {
+  const patient = await context.newPage();
+  const doctor = await context.newPage();
+  const reception = await context.newPage();
+  await login(patient, 'demo_patient');
+  await expect(patient).toHaveURL(/\/dashboard$/);
+  await login(doctor, 'dr.jane');
+  await expect(doctor).toHaveURL(/\/doctor\/dashboard$/);
+  await login(reception, 'demo_reception');
+  await expect(reception).toHaveURL(/\/reception$/);
+
+  const identity = (page) => page.evaluate(async () => {
+    const response = await fetch('http://127.0.0.1:8011/api/me/', {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
+    });
+    return response.json();
+  });
+  expect((await identity(patient)).username).toBe('demo_patient');
+  expect((await identity(doctor)).username).toBe('dr.jane');
+  expect((await identity(reception)).username).toBe('demo_reception');
+
+  await patient.reload();
+  await expect(patient.getByRole('heading', { name: /Demo Patient/ })).toBeVisible();
+  await doctor.evaluate(() => sessionStorage.setItem('accessToken', 'expired-access'));
+  await doctor.reload();
+  await expect(doctor.getByRole('heading', { name: /Jane Doe/ })).toBeVisible();
+  expect((await identity(patient)).username).toBe('demo_patient');
+  expect((await identity(doctor)).username).toBe('dr.jane');
+
+  await reception.getByRole('button', { name: 'Đăng xuất' }).click();
+  await expect(reception).toHaveURL(/\/login$/);
+  expect((await identity(patient)).username).toBe('demo_patient');
+  expect((await identity(doctor)).username).toBe('dr.jane');
+  expect(await reception.evaluate(() => sessionStorage.getItem('accessToken'))).toBeNull();
+
+  const newTab = await context.newPage();
+  await newTab.goto('/dashboard');
+  await expect(newTab).toHaveURL(/\/login$/);
+});
+
 test('patient sees bookings and can log out', async ({ page }, testInfo) => {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -67,11 +107,11 @@ test('role guard refuses patient access to receptionist workspace', async ({ pag
 test('expired token can refresh and invalid old token does not block login', async ({ page }) => {
   await login(page, 'demo_patient');
   await expect(page).toHaveURL(/\/dashboard$/);
-  await page.evaluate(() => localStorage.setItem('accessToken', 'expired-invalid-access'));
+  await page.evaluate(() => sessionStorage.setItem('accessToken', 'expired-invalid-access'));
   await page.reload();
   await expect(page.getByRole('heading', { name: /Demo Patient/ })).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem('accessToken'))).not.toBe('expired-invalid-access');
-  await page.evaluate(() => localStorage.setItem('accessToken', 'another-expired-token'));
+  expect(await page.evaluate(() => sessionStorage.getItem('accessToken'))).not.toBe('expired-invalid-access');
+  await page.evaluate(() => sessionStorage.setItem('accessToken', 'another-expired-token'));
   await login(page, 'dr.jane');
   await expect(page).toHaveURL(/\/doctor\/dashboard$/);
 });

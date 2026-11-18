@@ -29,10 +29,10 @@ const LoginPage = () => {
         password: password
       });
 
-      // Nếu thành công, lưu Token và Role vào localStorage
+      // Nếu thành công, lưu Token và Role vào sessionStorage
       const { access, refresh, role } = response.data;
-      localStorage.setItem('accessToken', access);
-      localStorage.setItem('refreshToken', refresh);
+      sessionStorage.setItem('accessToken', access);
+      sessionStorage.setItem('refreshToken', refresh);
 
       let resolvedRole = role;
       if (!resolvedRole) {
@@ -41,7 +41,7 @@ const LoginPage = () => {
         });
         resolvedRole = meRes.data.role;
       }
-      localStorage.setItem('userRole', resolvedRole);
+      sessionStorage.setItem('userRole', resolvedRole);
 
       message.success('Đăng nhập thành công!');
 

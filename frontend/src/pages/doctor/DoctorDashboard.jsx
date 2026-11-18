@@ -69,9 +69,9 @@ const DoctorDashboard = () => {
       .catch((error) => {
         if (!active) return;
         if (error.response?.status === 401) {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('userRole');
+          sessionStorage.removeItem('accessToken');
+          sessionStorage.removeItem('refreshToken');
+          sessionStorage.removeItem('userRole');
           navigate('/login');
           return;
         }
@@ -91,9 +91,9 @@ const DoctorDashboard = () => {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('userRole');
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('userRole');
     message.info('Đã đăng xuất.');
     navigate('/login');
   };

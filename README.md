@@ -157,6 +157,10 @@ npm run dev -- --port 5173 --strictPort
 ```
 
 Mở `http://localhost:5173`, vào trang đăng nhập và dùng tài khoản bệnh nhân mẫu.
+Phiên đăng nhập được lưu riêng cho từng tab bằng `sessionStorage`. Để thử cùng lúc
+bệnh nhân, bác sĩ và lễ tân trên một trình duyệt, mở ba tab và đăng nhập tài khoản
+tương ứng trong mỗi tab. Tải lại trang vẫn giữ phiên; đăng xuất ở một tab không
+đăng xuất các tab khác. Sau khi cập nhật từ bản dùng `localStorage`, cần đăng nhập lại.
 `--strictPort` giúp Vite báo lỗi nếu cổng 5173 bị chiếm thay vì tự chuyển sang
 cổng chưa được CORS cho phép. Dừng tiến trình đang dùng cổng đó rồi chạy lại.
 
