@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import api from '../api';
-import { logout } from '../auth';
-import useResource, { errorText } from '../hooks/useResource';
-import BookAppointment from './BookAppointment'; 
+import api from '../../api';
+import { logout } from '../../auth';
+import useResource, { errorText } from '../../hooks/useResource';
+import BookAppointment from '../shared/BookAppointment'; 
 import MyAppointment from './MyAppointment';
 import MyProfile from './MyProfile';
 import Doctors from './Doctors';
-import MedicalRecords from './MedicalRecords';
-import RecentVisits from '../components/RecentVisits';
+import MedicalRecords from '../shared/MedicalRecords';
+import RecentVisits from '../../components/RecentVisits';
 import { useNavigate } from 'react-router-dom';
 import { 
   HomeOutlined, CalendarOutlined, ClockCircleOutlined, 

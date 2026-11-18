@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Alert, Button, DatePicker, Empty, Segmented, Spin, Tag } from 'antd';
-import useResource from '../hooks/useResource';
-import MedicalRecordDetail from '../components/MedicalRecordDetail';
-import PatientSearch from '../components/PatientSearch';
+import useResource from '../../hooks/useResource';
+import MedicalRecordDetail from '../../components/MedicalRecordDetail';
+import PatientSearch from '../../components/PatientSearch';
 
 export default function MedicalRecords({ role = 'patient', initialPatient, initialRecordId, initialSearch = '', onClearContext }) {
   const [search, setSearch] = useState(role === 'doctor' ? initialSearch : '');

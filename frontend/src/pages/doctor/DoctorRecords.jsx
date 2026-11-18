@@ -1,4 +1,4 @@
-import MedicalRecords from '../MedicalRecords';
+import MedicalRecords from '../shared/MedicalRecords';
 
 export default function DoctorRecords(props) {
   return <MedicalRecords key={`${props.initialPatient?.user_id || 'all'}:${props.initialRecordId || 'list'}`}

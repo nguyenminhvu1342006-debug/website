@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import useResource from '../hooks/useResource';
+import useResource from '../../hooks/useResource';
 import { SearchOutlined } from '@ant-design/icons';
 import { Input, Select, Avatar, Spin, Button, Modal, Alert } from 'antd';
 
