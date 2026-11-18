@@ -36,7 +36,7 @@ test('three roles stay isolated across tabs in the same browser', async ({ conte
   expect((await identity(patient)).username).toBe('demo_patient');
   expect((await identity(doctor)).username).toBe('dr.jane');
 
-  await reception.getByRole('button', { name: 'Đăng xuất' }).click();
+  await reception.getByRole('button', { name: 'Log Out' }).click();
   await expect(reception).toHaveURL(/\/login$/);
   expect((await identity(patient)).username).toBe('demo_patient');
   expect((await identity(doctor)).username).toBe('dr.jane');
@@ -64,35 +64,61 @@ test('patient sees bookings and can log out', async ({ page }, testInfo) => {
 test('reception checks in patient and doctor sees waiting patient', async ({ page }, testInfo) => {
   await login(page, 'demo_reception');
   await expect(page).toHaveURL(/\/reception$/);
-  await expect(page.getByRole('cell', { name: 'Jane Doe', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Patient Information' })).toBeVisible();
+  await page.getByRole('link', { name: 'Check-in' }).click();
+  const card = page.getByTestId('appointment-card').filter({ hasText: 'Dr. Jane Doe' });
+  await expect(card).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('reception-desktop.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Check-in', exact: true }).click();
-  await expect(page.getByText('Chờ khám', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Đăng xuất' }).click();
+  await card.getByRole('button', { name: 'Check-in', exact: true }).click();
+  await expect(page.getByTestId('queue-number')).toHaveText('1');
+  await page.locator('.ant-modal-footer').getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('tab', { name: 'Completed' }).click();
+  await expect(page.getByText('Checked-in • No. 1')).toBeVisible();
+  await page.getByRole('button', { name: 'Log Out' }).click();
   await login(page, 'dr.jane');
   await expect(page).toHaveURL(/\/doctor\/dashboard$/);
   await expect(page.getByRole('button', { name: 'Bắt đầu khám ngay' })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('doctor-desktop.png'), fullPage: true });
 });
 
-test('reception can register a new patient through the form', async ({ page }) => {
+test('reception registers a new patient then books for them', async ({ page }) => {
   await login(page, 'demo_reception');
   await expect(page).toHaveURL(/\/reception$/);
-  await page.getByRole('button', { name: 'Đăng ký bệnh nhân', exact: true }).click();
-  await page.getByRole('button', { name: 'Đăng ký bệnh nhân mới' }).click();
-  await page.getByLabel('Họ và tên', { exact: true }).fill('Browser Registered');
-  await page.getByLabel('Tên đăng nhập', { exact: true }).fill('browser_registered');
-  await page.getByLabel('Mật khẩu ban đầu', { exact: true }).fill('ClinicGuest!2026');
-  await page.getByRole('button', { name: 'Tạo tài khoản', exact: true }).click();
-  await expect(page.getByRole('cell', { name: 'Browser Registered', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Register' }).click();
+  await page.getByLabel('Full Name', { exact: true }).fill('Browser Registered');
+  await page.getByLabel('Phone', { exact: true }).fill('+84 912 000 111');
+  await page.getByRole('button', { name: 'Create Patient Account' }).click();
+  const account = page.getByTestId('new-account');
+  await expect(account).toContainText('Username: 0912000111');
+  await page.getByRole('button', { name: 'Book an appointment' }).click();
+  await expect(page.getByText('Selected: Browser Registered')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Select', exact: true }).first().click();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (tomorrow.getDate() === 1) await page.getByRole('button', { name: 'Next month' }).click();
+  await page.getByRole('button', { name: String(tomorrow.getDate()), exact: true }).first().click();
+  await page.getByRole('button', { name: '10:30 AM', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm Booking' }).click();
+  await expect(page.getByText(/Booked Browser Registered/)).toBeVisible();
+  await expect(page.getByRole('button', { name: '10:30 AM', exact: true })).toBeDisabled();
+
+  // UC-10 (2a): số điện thoại đã đăng ký -> gợi ý mở hồ sơ cũ
+  await page.getByRole('link', { name: 'Register' }).click();
+  await page.getByLabel('Full Name', { exact: true }).fill('Duplicate Phone');
+  await page.getByLabel('Phone', { exact: true }).fill('0912 000 111');
+  await page.getByRole('button', { name: 'Create Patient Account' }).click();
+  await expect(page.getByText(/already belongs to Browser Registered/)).toBeVisible();
 });
 
 test('mobile receptionist workspace fits viewport', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page, 'demo_reception');
   await expect(page).toHaveURL(/\/reception$/);
-  await expect(page.getByRole('heading', { name: 'Lịch hẹn & Check-in' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'Jane Doe', exact: true })).toBeAttached();
+  await expect(page.getByRole('heading', { name: 'Patient Information' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.getByRole('link', { name: 'Check-in' }).click();
+  await expect(page.getByTestId('appointment-card').filter({ hasText: 'Dr. Jane Doe' })).toBeAttached();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({ path: testInfo.outputPath('reception-mobile.png'), fullPage: true });
 });

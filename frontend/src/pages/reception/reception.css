@@ -1,0 +1,49 @@
+/* Bố cục giao diện Lễ tân (theo UI mockup) + co giãn cho màn hình nhỏ */
+.rc-shell { display: flex; width: 100%; min-height: 100vh; background: #f8f9fa; color: #2b2b2b; text-align: left; }
+.rc-sidebar { width: 245px; flex-shrink: 0; background: white; border-right: 1px solid #e6e9ec; display: flex; flex-direction: column; justify-content: space-between; padding: 28px 20px; }
+.rc-nav { display: flex; flex-direction: column; gap: 6px; }
+.rc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rc-header { min-height: 70px; background: white; border-bottom: 1px solid #e6e9ec; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; gap: 16px; }
+.rc-header-tools { display: flex; align-items: center; gap: 22px; }
+.rc-search { width: 230px; }
+.rc-content { flex: 1; padding: 26px 28px 36px; display: flex; flex-direction: column; gap: 20px; }
+.rc-datetime { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; gap: 20px; align-items: start; }
+.rc-form-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.rc-identity { display: flex; gap: 36px; align-items: flex-start; }
+.rc-review { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.rc-appt-card { display: grid; grid-template-columns: 120px 46px 1fr 1fr auto; align-items: center; gap: 16px; }
+.rc-appt-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 90px; }
+
+/* Phiếu số thứ tự: khi in chỉ in phiếu (UC-09 bước 3) */
+@media print {
+  body * { visibility: hidden !important; }
+  .queue-ticket, .queue-ticket * { visibility: visible !important; }
+  .queue-ticket { position: fixed; inset: 0; margin: auto; height: fit-content; }
+}
+
+@media (max-width: 1000px) {
+  .rc-datetime { grid-template-columns: 1fr; }
+  .rc-appt-card { grid-template-columns: 110px 46px 1fr auto; }
+  .rc-appt-card .rc-appt-patient { grid-column: 3 / 4; }
+}
+
+@media (max-width: 760px) {
+  .rc-shell { flex-direction: column; }
+  .rc-sidebar { width: 100%; padding: 14px 16px; border-right: 0; border-bottom: 1px solid #e6e9ec; flex-direction: row; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .rc-sidebar > div { width: 100%; }
+  .rc-sidebar .rc-brand { margin-bottom: 10px !important; }
+  .rc-nav { flex-direction: row; overflow-x: auto; gap: 4px; }
+  .rc-nav a { white-space: nowrap; padding: 8px 12px !important; font-size: 14px !important; }
+  .rc-logout { margin-left: auto; }
+  .rc-header { flex-wrap: wrap; padding: 12px 16px; }
+  .rc-header-tools { width: 100%; gap: 14px; }
+  .rc-search { flex: 1; width: auto; }
+  .rc-content { padding: 16px; }
+  .rc-form-grid { grid-template-columns: 1fr; }
+  .rc-identity { flex-direction: column; gap: 16px; }
+  .rc-review { flex-direction: column; align-items: stretch; }
+  .rc-appt-card { grid-template-columns: 46px 1fr; }
+  .rc-appt-card .rc-appt-when { grid-column: 1 / -1; }
+  .rc-appt-card .rc-appt-patient { grid-column: 1 / -1; }
+  .rc-appt-actions { grid-column: 1 / -1; flex-direction: row; justify-content: flex-end; align-items: center; gap: 14px; }
+}

@@ -6,7 +6,7 @@ from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from clinic_api.models import Doctor, Patient, Specialty
+from clinic_api.models import Doctor, Patient, Receptionist, Specialty
 
 
 DEMO_PASSWORD = 'ClinicDemo2026!'
@@ -91,6 +91,10 @@ class Command(BaseCommand):
                 group, _ = Group.objects.get_or_create(name='Receptionist')
                 receptionist.groups.add(group)
                 created_users.append('demo_reception')
+                Receptionist.objects.create(
+                    user=receptionist, assigned_counter='Desk 01',
+                    department='Outpatient Admission', current_shift='Morning Shift (07:30 - 15:30)',
+                )
 
         self.stdout.write(self.style.SUCCESS(
             f'Seed complete: {created_doctors} doctors and {len(created_users)} accounts created. '
