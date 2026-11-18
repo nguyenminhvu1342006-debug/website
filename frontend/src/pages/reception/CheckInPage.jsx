@@ -5,7 +5,7 @@ import { LuPrinter } from 'react-icons/lu';
 import dayjs from 'dayjs';
 import api from '../../api';
 import useResource, { errorText } from '../../hooks/useResource';
-import BookAppointment from '../BookAppointment';
+import BookAppointment from '../shared/BookAppointment';
 import { BORDER, DANGER, MUTED, SERIF, STATUS_META, TEAL, TEAL_LIGHT, formatDateShort, formatTime12h } from './constants';
 
 const PAGE_SIZE = 10;

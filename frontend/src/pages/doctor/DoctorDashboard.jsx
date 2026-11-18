@@ -122,6 +122,7 @@ const DoctorDashboard = () => {
     <div className="legacy-workspace" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#fcfcfc', fontFamily: 'Arial, sans-serif' }}>
       {/* ================= LEFT SIDEBAR ================= */}
       <div
+        className="clinic-sidebar doctor-sidebar"
         style={{
           width: '260px',
           backgroundColor: 'white',
@@ -190,7 +191,7 @@ const DoctorDashboard = () => {
           </div>
         </div>
 
-        <div style={{ padding: '0 15px' }}>
+        <div className="sidebar-footer" style={{ padding: '0 15px' }}>
           <Button
             icon={<LogoutOutlined />}
             block

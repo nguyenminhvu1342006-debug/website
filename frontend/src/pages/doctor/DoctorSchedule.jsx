@@ -4,7 +4,6 @@ import {
   Button,
   DatePicker,
   Empty,
-  Input,
   Segmented,
   Select,
   Space,
@@ -16,10 +15,10 @@ import {
   FileTextOutlined,
   HistoryOutlined,
   MedicineBoxOutlined,
-  SearchOutlined,
 } from '@ant-design/icons';
 import useResource from '../../hooks/useResource';
 import ExaminationModal from './ExaminationModal';
+import PatientSearch from '../../components/PatientSearch';
 
 const PRIMARY_TEAL = '#4cb4b3';
 const DARK_TEXT = '#333333';
@@ -107,6 +106,7 @@ const DoctorSchedule = ({ onViewPatientHistory, onViewRecordDetail }) => {
         <Space>
           {app.status === 'Checked-in' && (
             <Button
+              aria-label="Khám bệnh"
               type="primary"
               icon={<MedicineBoxOutlined />}
               onClick={() => setExamTarget(app)}
@@ -195,13 +195,9 @@ const DoctorSchedule = ({ onViewPatientHistory, onViewRecordDetail }) => {
               { value: 'Cancelled', label: 'Đã hủy' },
             ]}
           />
-          <Input
-            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            placeholder="Tìm bệnh nhân / SĐT..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            allowClear
-            style={{ width: 230, borderRadius: '10px' }}
+          <PatientSearch source="doctor/patients/" onSearch={setSearchTerm}
+            placeholder="ID, tên, tài khoản hoặc SĐT"
+            style={{ width: 280, maxWidth: '100%' }}
           />
         </Space>
       </div>

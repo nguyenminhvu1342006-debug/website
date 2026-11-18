@@ -1,17 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useLocation, useOutletContext, useSearchParams } from 'react-router-dom';
-import { AutoComplete, Button, Input, message } from 'antd';
-import { LuSearch } from 'react-icons/lu';
+import { Button, message } from 'antd';
 import dayjs from 'dayjs';
 import api from '../../api';
 import { errorText } from '../../hooks/useResource';
+import PatientSearch from '../../components/PatientSearch';
 import DoctorPicker from './components/DoctorPicker';
 import MonthCalendar from './components/MonthCalendar';
 import SectionCard from './components/SectionCard';
 import TimeSlotPanel from './components/TimeSlotPanel';
 import useDoctors from './components/useDoctors';
 import useSlotBoard from './components/useSlotBoard';
-import { ALL_SPECIALTIES, BORDER, MUTED, formatDateShort, formatTime12h } from './constants';
+import { ALL_SPECIALTIES, MUTED, formatDateShort, formatTime12h } from './constants';
 
 // Bệnh nhân từ /api/reception/patients/: id = mã bệnh nhân (PID), user_id = khóa dùng khi đặt lịch
 const describePatient = (p) => `${p.full_name} (PID: ${p.id}${p.phone ? ` | Phone: ${p.phone}` : ''})`;
@@ -26,9 +26,6 @@ const PatientBookingPage = () => {
   //  - bệnh nhân vừa đăng ký: navigate('/reception', { state: { patient } })
   //  - từ trang Doctors: ?doctor=<id>&date=YYYY-MM-DD&time=HH:mm
   const [patient, setPatient] = useState(() => location.state?.patient || null);
-  const [lookup, setLookup] = useState('');
-  const [matches, setMatches] = useState([]);
-  const [searching, setSearching] = useState(false);
 
   const { doctors, loading: loadingDoctors } = useDoctors();
   const [specialty, setSpecialty] = useState(ALL_SPECIALTIES);
@@ -43,42 +40,6 @@ const PatientBookingPage = () => {
   const { slots, loading: loadingSlots, error: slotError, reload: reloadSlots } = useSlotBoard(doctorId, date);
   const doctor = doctors.find((d) => d.id === doctorId) || null;
   const timeIsAvailable = slots.some((s) => s.time === time && s.state === 'available');
-
-  // Tra cứu bệnh nhân theo SĐT / PID / tên (đợi 300ms sau khi ngừng gõ).
-  useEffect(() => {
-    const term = lookup.trim();
-    if (!term) return;
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      setSearching(true);
-      api
-        .get('reception/patients/', { params: { search: term }, signal: controller.signal })
-        .then(({ data }) => setMatches(data))
-        .catch(() => {
-          if (!controller.signal.aborted) setMatches([]);
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setSearching(false);
-        });
-    }, 300);
-    return () => {
-      controller.abort();
-      clearTimeout(timer);
-    };
-  }, [lookup]);
-
-  const handleLookupChange = (value) => {
-    setLookup(value);
-    if (!value.trim()) setMatches([]);
-  };
-
-  const handleSelectPatient = (userId) => {
-    const found = matches.find((p) => String(p.user_id) === String(userId));
-    if (found) {
-      setPatient(found);
-      setLookup(found.phone || found.id);
-    }
-  };
 
   const handleConfirm = async () => {
     setSubmitting(true);
@@ -115,46 +76,24 @@ const PatientBookingPage = () => {
     .filter(Boolean)
     .join(' • ');
 
-  const lookupOptions = lookup.trim()
-    ? matches.map((p) => ({ value: String(p.user_id), label: describePatient(p) }))
-    : [];
-
   return (
     <>
       <SectionCard title="Patient Information" subtitle="Enter Patient Phone Number or PID to lookup...">
-        <AutoComplete
-          value={lookup}
-          options={lookupOptions}
-          onChange={handleLookupChange}
-          onSelect={handleSelectPatient}
-          style={{ width: '100%' }}
-          notFoundContent={
-            lookup.trim() && !searching ? (
-              <span>
-                No patient found. <Link to="/reception/register">Register a new patient</Link>
-              </span>
-            ) : null
-          }
-        >
-          <Input
-            size="large"
-            variant="filled"
-            prefix={<LuSearch style={{ color: MUTED }} />}
-            placeholder="Phone number, PID or name"
-            aria-label="Patient lookup"
-            style={{ border: `1px solid ${BORDER}` }}
-          />
-        </AutoComplete>
+        {/* Ô tìm bệnh nhân dùng chung của nhóm: gợi ý theo PID, tên, tài khoản, SĐT, địa chỉ */}
+        <PatientSearch
+          initialPatient={location.state?.patient}
+          onSelect={setPatient}
+          placeholder="Phone number, PID, name or address"
+        />
         <div style={{ marginTop: 14, fontSize: 14, minHeight: 22 }}>
           {patient ? (
             <>
               Selected: {describePatient(patient)}{' '}
-              <Button type="link" size="small" onClick={() => setPatient(null)} style={{ padding: 0 }}>
-                Clear
-              </Button>
             </>
           ) : (
-            <span style={{ color: MUTED }}>No patient selected.</span>
+            <span style={{ color: MUTED }}>
+              No patient selected. New patient? <Link to="/reception/register">Register first</Link>.
+            </span>
           )}
         </div>
       </SectionCard>

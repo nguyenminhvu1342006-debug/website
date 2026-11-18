@@ -87,7 +87,8 @@ const RegisterPage = () => {
             .map(([name, errors]) => ({ name, errors: [].concat(errors).map(String) }))
         );
       }
-      message.error(errorText(error));
+      // Lỗi trùng SĐT đã hiện ngay dưới ô nhập và trong khung cảnh báo -> chỉ báo ngắn gọn.
+      message.error(fieldErrors?.existing_patient ? [].concat(fieldErrors.phone).join(' ') : errorText(error));
     } finally {
       setSubmitting(false);
     }

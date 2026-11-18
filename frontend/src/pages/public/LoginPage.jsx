@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api';
-import { roleHome, logout } from '../auth';
+import api from '../../api';
+import { roleHome, logout } from '../../auth';
 import { Input, Button, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 

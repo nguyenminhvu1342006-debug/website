@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import useResource, { errorText } from '../hooks/useResource';
-import api from '../api';
+import useResource, { errorText } from '../../hooks/useResource';
+import api from '../../api';
 import { Avatar, Button, Input, message, Spin, Alert } from 'antd';
 import { CameraOutlined, UserOutlined } from '@ant-design/icons';
 

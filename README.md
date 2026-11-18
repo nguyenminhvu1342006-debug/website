@@ -6,6 +6,19 @@ Website phòng khám với frontend React/Vite và backend Django REST Framework
 Chức năng đang có: đăng nhập, xem bác sĩ, đặt/hủy lịch khám, xem lịch hẹn và
 cập nhật hồ sơ bệnh nhân. Một số giao diện còn đang phát triển.
 
+## Cấu trúc giao diện frontend
+
+```text
+frontend/src/pages/
+├── public/       # Trang chủ và đăng nhập
+├── patient/      # Dashboard, bác sĩ, lịch hẹn và hồ sơ bệnh nhân
+├── doctor/       # Dashboard, lịch khám, hồ sơ và form khám của bác sĩ
+├── reception/    # Giao diện lễ tân
+└── shared/       # Đặt lịch và Medical Records dùng chung giữa các vai trò
+```
+
+Các thành phần giao diện dùng lại nằm trong `frontend/src/components/`.
+
 ## Chuẩn bị
 
 - Git.
@@ -120,8 +133,8 @@ Lệnh seed không có `--include-receptionist` vẫn chỉ tạo bác sĩ và b
 
 Luồng thử: bệnh nhân đặt lịch → lễ tân xem lịch trong ngày và check-in → bác sĩ
 thấy bệnh nhân chờ khám. Lễ tân chỉ được check-in lịch hôm nay ở trạng thái
-`Confirmed`; sau check-in, bệnh nhân không thể hủy lịch đó. Phần khám/lưu bệnh án
-hiện có được giữ nguyên để phát triển Medical Records riêng sau này.
+`Confirmed`; sau check-in, bệnh nhân không thể hủy lịch đó. Khi bác sĩ hoàn tất
+khám, bệnh án và đơn thuốc xuất hiện trong Medical Records của bệnh nhân.
 
 Giao diện Lễ tân (`/reception`, theo UI mockup) gồm 5 trang:
 
@@ -214,7 +227,7 @@ ban đầu. Lịch hẹn và thay đổi hồ sơ sau đó không tự đồng b
 
 ## Phạm vi hiện tại
 
-- Medical Records và Recent Visits chưa hoàn thiện; bảng Recent Visits còn dữ liệu tĩnh.
+- Medical Records và Recent Visits lấy dữ liệu thật từ bệnh án đã hoàn tất.
 - Frontend build bằng `npm run build`, kiểm tra mã bằng `npm run lint`.
 - Đặt lịch dùng `doctor_id`, kiểm tra ngày/giờ ở server và dùng transaction/khóa
   hàng trên MySQL. Kiểm tra đồng thời đã xác nhận hai bệnh nhân không thể đặt cùng
@@ -222,6 +235,31 @@ ban đầu. Lịch hẹn và thay đổi hồ sơ sau đó không tự đồng b
 - Các lệnh và tài khoản mẫu ở đây dành cho phát triển. Triển khai thật cần cấu hình
   riêng cho host, HTTPS, secret key, database và tắt DEBUG; không dùng tài khoản mẫu.
 - Chưa xác nhận toàn bộ quy trình trên một bản clone sạch với MySQL trống.
+
+## Luồng bệnh án và đơn thuốc
+
+1. Lễ tân check-in lịch khám hôm nay.
+2. Bác sĩ được phân công mở My Schedule → Khám bệnh, nhập chẩn đoán, lời dặn
+   và đơn thuốc nếu cần. Mỗi thuốc phải có tên và liều lượng; có thể hoàn tất mà
+   không kê thuốc.
+3. Hoàn thành khám lưu bệnh án/thuốc trong cùng transaction và chuyển lịch sang
+   `Completed`. Khóa hàng MySQL ngăn hai yêu cầu hoàn tất tạo trùng bệnh án.
+4. Bác sĩ xem lại tại Medical Records; bệnh nhân xem Medical Records, Recent Visits
+   hoặc nút Xem bệnh án trong lịch đã hoàn thành. Có tìm kiếm, lọc ngày/năm,
+   nút Làm mới và in/lưu PDF qua hộp thoại in của trình duyệt.
+
+Bệnh nhân chỉ đọc được bệnh án của chính mình. Lễ tân không có quyền đọc bệnh án.
+Bác sĩ đọc bệnh án do mình lập; chỉ được đọc lịch sử của bác sĩ khác khi bệnh nhân
+đã check-in hoặc đã khám với mình. Chỉ đặt lịch hoặc lịch đã hủy không cấp quyền
+đọc tiền sử. Bệnh án đã hoàn tất là chỉ đọc qua API; chưa hỗ trợ chỉnh sửa/thu hồi.
+Thông tin hồ sơ bệnh nhân và bác sĩ hiện hiển thị theo hồ sơ đang có, không phải
+bản chụp thông tin tại thời điểm khám. Chưa triển khai chữ ký số hoặc nhật ký
+chỉnh sửa phục vụ hệ thống bệnh án sử dụng thực tế.
+
+API bệnh nhân: `GET /api/my-records/`, `GET /api/my-records/<id>/`.
+API bác sĩ giữ đường dẫn `GET /api/doctor/records/` và chi tiết tương ứng.
+Danh sách hỗ trợ `search`, `date` (YYYY-MM-DD), `year`, `limit` (1–100).
+Chỉ API bác sĩ dùng `patient_user_id` để chọn bệnh nhân trong phạm vi được cấp quyền.
 
 ## Chạy kiểm thử
 

@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import useResource, { errorText } from '../hooks/useResource';
-import api from '../api';
+import useResource, { errorText } from '../../hooks/useResource';
+import api from '../../api';
+import MedicalRecordDetail from '../../components/MedicalRecordDetail';
 import { CalendarOutlined } from '@ant-design/icons';
 import { Alert, Spin, message, Button, Popconfirm, Avatar, Tag } from 'antd';
 
 const MyAppointment = () => {
+  const [recordId, setRecordId] = useState(null);
   const [activeTab, setActiveTab] = useState('Confirmed'); // 'Confirmed', 'Completed', 'Cancelled'
 
   const primaryTeal = '#4cb4b3';
@@ -120,7 +122,7 @@ const MyAppointment = () => {
                   </Popconfirm>
                 )}
                 {activeTab === 'Completed' && (
-                  <span style={{ color: '#52c41a', fontWeight: 'bold', fontSize: '14px' }}>Đã hoàn thành</span>
+                  <div className="actions"><span style={{ color: '#52c41a' }}>Đã hoàn thành</span>{item.medical_record_id && <Button onClick={() => setRecordId(item.medical_record_id)}>Xem bệnh án</Button>}</div>
                 )}
                 {activeTab === 'Cancelled' && (
                   <span style={{ color: '#ff4d4f', fontWeight: 'bold', fontSize: '14px' }}>Đã hủy</span>
@@ -132,6 +134,7 @@ const MyAppointment = () => {
         </div>
       )}
 
+      <MedicalRecordDetail recordId={recordId} onClose={() => setRecordId(null)} />
     </div>
   );
 };

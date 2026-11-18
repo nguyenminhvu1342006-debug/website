@@ -1,4 +1,5 @@
 """Reception desk: patient registration, booking and check-in."""
+import re
 import secrets
 import string
 
@@ -16,10 +17,46 @@ from rest_framework.views import APIView
 
 from .booking import BookingSerializer, book
 from .models import Appointment, Doctor, Patient, Receptionist
-from .permissions import IsReceptionist
+from .permissions import IsDoctor, IsReceptionist
 from .serializers import DoctorAppointmentSerializer, PatientProfileSerializer, _build_initials
 
 User = get_user_model()
+
+
+def generated_patient_user_id(value):
+    match = re.fullmatch(r'A([0-9]{7,19})', value.upper())
+    if match:
+        user_id = int(match.group(1))
+        if 0 < user_id <= 9223372036854775807 and value.upper() == f'A{user_id:07d}':
+            return user_id
+    return None
+
+
+def filter_patient_search(patients, search):
+    if not search:
+        return patients
+    matches = (Q(full_name__icontains=search) | Q(phone__icontains=search)
+               | Q(patient_id__icontains=search) | Q(user__username__icontains=search)
+               | Q(address__icontains=search))
+    user_id = generated_patient_user_id(search)
+    if user_id:
+        matches |= Q(user_id=user_id) & (Q(patient_id__isnull=True) | Q(patient_id=''))
+    return patients.filter(matches)
+
+
+class DoctorPatientSuggestionsView(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        patients = Patient.objects.select_related('user').filter(
+            user__is_active=True, user__appointments__doctor=request.user.doctor_profile,
+        ).distinct()
+        patients = filter_patient_search(patients, request.query_params.get('search', '').strip())
+        return Response([{
+            'id': patient.patient_id or f'A{patient.user_id:07d}',
+            'user_id': patient.user_id, 'full_name': patient.full_name,
+            'username': patient.user.username, 'phone': patient.phone,
+        } for patient in patients.order_by('full_name', 'pk')[:100]])
 
 
 def normalize_phone(phone):
@@ -128,9 +165,7 @@ class ReceptionPatientsView(APIView):
     def get(self, request):
         patients = Patient.objects.select_related('user').filter(user__is_active=True)
         search = request.query_params.get('search', '').strip()
-        if search:
-            patients = patients.filter(Q(full_name__icontains=search) | Q(phone__icontains=search)
-                                       | Q(patient_id__icontains=search) | Q(user__username__icontains=search))
+        patients = filter_patient_search(patients, search)
         return Response([dict(PatientProfileSerializer(patient).data, user_id=patient.user_id,
                               username=patient.user.username) for patient in patients.order_by('full_name')[:100]])
 
@@ -191,14 +226,21 @@ class ReceptionAppointmentsView(APIView):
 
         search = params.get('search', '').strip()
         if search:
-            condition = (Q(patient__patient_profile__full_name__icontains=search)
-                         | Q(patient__patient_profile__phone__icontains=search)
-                         | Q(patient__patient_profile__patient_id__icontains=search)
-                         | Q(patient__username__icontains=search))
-            code = search.lstrip('#')
+            matches = (
+                Q(patient__patient_profile__full_name__icontains=search)
+                | Q(patient__patient_profile__phone__icontains=search)
+                | Q(patient__username__icontains=search)
+                | Q(patient__patient_profile__patient_id__iexact=search)
+            )
+            user_id = generated_patient_user_id(search)
+            if user_id:
+                no_custom_code = (Q(patient__patient_profile__patient_id__isnull=True)
+                                  | Q(patient__patient_profile__patient_id=''))
+                matches |= Q(patient_id=user_id) & no_custom_code
+            code = search[1:] if search.startswith('#') else ''
             if code.isdigit():  # UC-09: tra theo mã lịch hẹn, vd "#12"
-                condition |= Q(pk=int(code))
-            appointments = appointments.filter(condition)
+                matches = Q(pk=int(code))
+            appointments = appointments.filter(matches)
 
         order = ('-date', '-time', '-pk') if params.get('order') == 'desc' else ('date', 'time', 'pk')
         return Response([dict(DoctorAppointmentSerializer(app).data,

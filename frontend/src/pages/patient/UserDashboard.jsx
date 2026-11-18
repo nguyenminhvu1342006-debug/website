@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
-import api from '../api';
-import { logout } from '../auth';
-import useResource, { errorText } from '../hooks/useResource';
-import BookAppointment from './BookAppointment'; 
+import api from '../../api';
+import { logout } from '../../auth';
+import useResource, { errorText } from '../../hooks/useResource';
+import BookAppointment from '../shared/BookAppointment'; 
 import MyAppointment from './MyAppointment';
 import MyProfile from './MyProfile';
 import Doctors from './Doctors';
+import MedicalRecords from '../shared/MedicalRecords';
+import RecentVisits from '../../components/RecentVisits';
 import { useNavigate } from 'react-router-dom';
 import { 
   HomeOutlined, CalendarOutlined, ClockCircleOutlined, 
   FileTextOutlined, TeamOutlined, UserOutlined,
-  SearchOutlined, BellOutlined, LogoutOutlined
+  BellOutlined, LogoutOutlined
 } from '@ant-design/icons';
-import { Input, Button, Avatar, Spin, Popconfirm, message, Alert } from 'antd';
+import { Button, Avatar, Spin, Popconfirm, message, Alert } from 'antd';
 
 
 
@@ -22,6 +24,8 @@ const UserDashboard = () => {
   const darkText = '#333333';
   
   const [activeMenu, setActiveMenu] = useState('Dashboard');
+  const [recordId, setRecordId] = useState(null);
+  const [recordSearch, setRecordSearch] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState('');
@@ -60,12 +64,6 @@ const UserDashboard = () => {
     { name: 'My profile', icon: <UserOutlined /> },
   ];
 
-  const recentVisits = [
-    { date: 'Sep 24, 2026', doctor: 'Dr. John Smith', diagnosis: 'Annual Checkup' },
-    { date: 'Sep 10, 2026', doctor: 'Dr. Sarah Jenkins', diagnosis: 'Flu Vaccination' },
-    { date: 'Aug 18, 2026', doctor: 'Dr. Michael Chen', diagnosis: 'Dermatology Consult' },
-  ];
-
   const handleCancel = async (appointmentId) => {
     try {
       const token = sessionStorage.getItem('accessToken');
@@ -83,7 +81,7 @@ const UserDashboard = () => {
     <div className="legacy-workspace" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#fcfcfc', fontFamily: 'Arial, sans-serif' }}>
       
       {/* ================= LEFT SIDEBAR ================= */}
-      <div style={{ width: '260px', backgroundColor: 'white', borderRight: '1px solid #eaeaea', display: 'flex', flexDirection: 'column', padding: '30px 0' }}>
+      <div className="clinic-sidebar patient-sidebar" style={{ width: '260px', backgroundColor: 'white', borderRight: '1px solid #eaeaea', display: 'flex', flexDirection: 'column', padding: '30px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0 30px', marginBottom: '50px' }}>
           <div style={{ width: '45px', height: '45px', backgroundColor: primaryTeal, borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'white', fontSize: '20px' }}>💊</div>
           <div>
@@ -99,6 +97,7 @@ const UserDashboard = () => {
               <div 
                 key={item.name}
                 onClick={() => {
+                  if (item.name === 'Medical Records') { setRecordId(null); setRecordSearch(''); }
                   setActiveMenu(item.name);
                 }}
                 style={{
@@ -113,7 +112,7 @@ const UserDashboard = () => {
             );
           })}
         </div>
-        <Button icon={<LogoutOutlined />} style={{ margin: 'auto 20px 0' }} onClick={() => { logout(); navigate('/login'); }}>Đăng xuất</Button>
+        <div className="sidebar-footer" style={{ padding: '0 20px' }}><Button block icon={<LogoutOutlined />} onClick={() => { logout(); navigate('/login'); }}>Đăng xuất</Button></div>
       </div>
 
       {/* ================= MAIN CONTENT ================= */}
@@ -123,7 +122,6 @@ const UserDashboard = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 style={{ fontFamily: 'serif', margin: 0, color: darkText, fontSize: '26px' }}>Xin chào{profile?.full_name ? `, ${profile.full_name}` : ''}!</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-            <Input prefix={<SearchOutlined style={{ color: '#bfbfbf' }}/>} placeholder="Search records..." style={{ width: '250px', borderRadius: '20px', backgroundColor: '#f5f5f5', border: 'none', padding: '8px 15px' }} />
             <BellOutlined style={{ fontSize: '22px', color: '#666' }} />
             <Avatar icon={!profile?.avatar_initials ? <UserOutlined /> : undefined} style={{ backgroundColor: '#e6f4f4', color: primaryTeal, fontWeight: 'bold' }} size="large">{profile?.avatar_initials}</Avatar>
           </div>
@@ -175,15 +173,7 @@ const UserDashboard = () => {
               <Button shape="round" size="large" style={{ color: primaryTeal, fontWeight: 'bold', border: 'none', padding: '0 30px' }} onClick={() => setActiveMenu('Book Appointment')}>+ Book New Appointment</Button>
             </div>
 
-            <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '30px', boxShadow: '0 4px 15px rgba(0,0,0,0.02)', border: '1px solid #f0f0f0' }}>
-              <h3 style={{ fontFamily: 'serif', margin: '0 0 25px 0', fontSize: '22px', color: darkText }}>Recent Visits</h3>
-              <div style={{ display: 'flex', paddingBottom: '15px', borderBottom: '1px solid #f0f0f0', color: '#888', fontSize: '14px' }}><div style={{ flex: 1 }}>Date</div><div style={{ flex: 1 }}>Doctor</div><div style={{ flex: 2 }}>Diagnosis</div><div style={{ width: '100px', textAlign: 'right' }}>Action</div></div>
-              {recentVisits.map((visit, index) => (
-                <div key={index} style={{ display: 'flex', padding: '20px 0', borderBottom: index !== recentVisits.length - 1 ? '1px solid #f9f9f9' : 'none', color: darkText, fontSize: '15px', alignItems: 'center' }}>
-                  <div style={{ flex: 1 }}>{visit.date}</div><div style={{ flex: 1 }}>{visit.doctor}</div><div style={{ flex: 2 }}>{visit.diagnosis}</div><div style={{ width: '100px', textAlign: 'right' }}><span style={{ color: primaryTeal, cursor: 'pointer', fontWeight: '500' }}>View Details</span></div>
-                </div>
-              ))}
-            </div>
+            <RecentVisits onOpenRecord={(id) => { setRecordId(id); setRecordSearch(''); setActiveMenu('Medical Records'); }} />
           </>
         )}
 
@@ -202,6 +192,7 @@ const UserDashboard = () => {
            }}
           />
         )}
+        {activeMenu === 'Medical Records' && <MedicalRecords key={`${recordId || 'list'}:${recordSearch}`} initialRecordId={recordId} initialSearch={recordSearch} />}
         {activeMenu === 'My profile' && (
           <MyProfile onProfileUpdated={setProfile} />
         )}
