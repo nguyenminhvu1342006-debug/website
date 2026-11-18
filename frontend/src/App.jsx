@@ -4,12 +4,12 @@ import { Spin, Result, Button } from 'antd';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
-const HomePage = lazy(() => import('./pages/HomePage'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const UserDashboard = lazy(() => import('./pages/UserDashboard'));
-const MyAppointment = lazy(() => import('./pages/MyAppointment'));
+const HomePage = lazy(() => import('./pages/public/HomePage'));
+const LoginPage = lazy(() => import('./pages/public/LoginPage'));
+const UserDashboard = lazy(() => import('./pages/patient/UserDashboard'));
+const MyAppointment = lazy(() => import('./pages/patient/MyAppointment'));
 const DoctorDashboard = lazy(() => import('./pages/doctor/DoctorDashboard'));
-const ReceptionDashboard = lazy(() => import('./pages/ReceptionDashboard'));
+const ReceptionDashboard = lazy(() => import('./pages/reception/ReceptionDashboard'));
 
 function App() {
   return (

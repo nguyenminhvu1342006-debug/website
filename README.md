@@ -6,6 +6,19 @@ Website phòng khám với frontend React/Vite và backend Django REST Framework
 Chức năng đang có: đăng nhập, xem bác sĩ, đặt/hủy lịch khám, xem lịch hẹn và
 cập nhật hồ sơ bệnh nhân. Một số giao diện còn đang phát triển.
 
+## Cấu trúc giao diện frontend
+
+```text
+frontend/src/pages/
+├── public/       # Trang chủ và đăng nhập
+├── patient/      # Dashboard, bác sĩ, lịch hẹn và hồ sơ bệnh nhân
+├── doctor/       # Dashboard, lịch khám, hồ sơ và form khám của bác sĩ
+├── reception/    # Giao diện lễ tân
+└── shared/       # Đặt lịch và Medical Records dùng chung giữa các vai trò
+```
+
+Các thành phần giao diện dùng lại nằm trong `frontend/src/components/`.
+
 ## Chuẩn bị
 
 - Git.

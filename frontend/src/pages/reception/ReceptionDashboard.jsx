@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Alert, Button, DatePicker, Form, Input, Modal, Popconfirm, Spin, Table, Tag, message } from 'antd';
 import { CalendarOutlined, CheckCircleOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import api from '../api';
-import useResource, { errorText } from '../hooks/useResource';
-import Workspace from '../components/Workspace';
-import PatientSearch from '../components/PatientSearch';
-import BookAppointment from './BookAppointment';
+import api from '../../api';
+import useResource, { errorText } from '../../hooks/useResource';
+import Workspace from '../../components/Workspace';
+import PatientSearch from '../../components/PatientSearch';
+import BookAppointment from '../shared/BookAppointment';
 
 const menu = [
   { key: 'appointments', label: 'Appointments & Check-in', icon: <CheckCircleOutlined /> },

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Alert, Avatar, Button, Calendar, Empty, Select, Spin, message } from 'antd';
 import dayjs from 'dayjs';
-import api from '../api';
-import useResource, { errorText } from '../hooks/useResource';
+import api from '../../api';
+import useResource, { errorText } from '../../hooks/useResource';
 
 export default function BookAppointment({ preSelectedDoctor, patientUserId, onBooked, rescheduleId }) {
   const doctors = useResource('doctors/');

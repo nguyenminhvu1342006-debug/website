@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import useResource, { errorText } from '../hooks/useResource';
-import api from '../api';
-import MedicalRecordDetail from '../components/MedicalRecordDetail';
+import useResource, { errorText } from '../../hooks/useResource';
+import api from '../../api';
+import MedicalRecordDetail from '../../components/MedicalRecordDetail';
 import { CalendarOutlined } from '@ant-design/icons';
 import { Alert, Spin, message, Button, Popconfirm, Avatar, Tag } from 'antd';
 
