@@ -12,9 +12,9 @@ import { useNavigate } from 'react-router-dom';
 import { 
   HomeOutlined, CalendarOutlined, ClockCircleOutlined, 
   FileTextOutlined, TeamOutlined, UserOutlined,
-  SearchOutlined, BellOutlined, LogoutOutlined
+  BellOutlined, LogoutOutlined
 } from '@ant-design/icons';
-import { Input, Button, Avatar, Spin, Popconfirm, message, Alert } from 'antd';
+import { Button, Avatar, Spin, Popconfirm, message, Alert } from 'antd';
 
 
 
@@ -122,7 +122,6 @@ const UserDashboard = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 style={{ fontFamily: 'serif', margin: 0, color: darkText, fontSize: '26px' }}>Xin chào{profile?.full_name ? `, ${profile.full_name}` : ''}!</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-            <Input.Search onSearch={(value) => { setRecordSearch(value); setRecordId(null); setActiveMenu('Medical Records'); }} prefix={<SearchOutlined style={{ color: '#bfbfbf' }}/>} placeholder="Search records..." style={{ width: '250px', borderRadius: '20px', backgroundColor: '#f5f5f5', border: 'none', padding: '8px 15px' }} />
             <BellOutlined style={{ fontSize: '22px', color: '#666' }} />
             <Avatar icon={!profile?.avatar_initials ? <UserOutlined /> : undefined} style={{ backgroundColor: '#e6f4f4', color: primaryTeal, fontWeight: 'bold' }} size="large">{profile?.avatar_initials}</Avatar>
           </div>

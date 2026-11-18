@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { Alert, Button, DatePicker, Empty, Input, Segmented, Spin, Tag } from 'antd';
+import { Alert, Button, DatePicker, Empty, Segmented, Spin, Tag } from 'antd';
 import useResource from '../hooks/useResource';
 import MedicalRecordDetail from '../components/MedicalRecordDetail';
+import PatientSearch from '../components/PatientSearch';
 
 export default function MedicalRecords({ role = 'patient', initialPatient, initialRecordId, initialSearch = '', onClearContext }) {
-  const [search, setSearch] = useState(initialSearch);
+  const [search, setSearch] = useState(role === 'doctor' ? initialSearch : '');
   const [period, setPeriod] = useState({ mode: 'date', value: null });
   const [chosen, setChosen] = useState(null);
   const [closedInitial, setClosedInitial] = useState(false);
   const records = useResource(role === 'doctor' ? 'doctor/records/' : 'my-records/', {
-    search, ...(period.value ? period.mode === 'year'
+    ...(role === 'doctor' ? { search } : {}), ...(period.value ? period.mode === 'year'
       ? { year: period.value.year() } : { date: period.value.format('YYYY-MM-DD') } : {}),
     ...(initialPatient ? { patient_user_id: initialPatient.user_id } : {}),
   });
@@ -19,8 +20,8 @@ export default function MedicalRecords({ role = 'patient', initialPatient, initi
     {initialPatient && <Alert type="info" title={`Tiền sử: ${initialPatient.full_name} (${initialPatient.patient_code})`}
       action={<Button onClick={onClearContext}>Xem bệnh án do tôi lập</Button>} />}
     <section className="panel"><div className="toolbar">
-      <Input.Search aria-label="Tìm bệnh án theo ID bệnh nhân, tên, chẩn đoán hoặc thuốc" placeholder={role === 'doctor' ? 'ID, bệnh nhân, chẩn đoán hoặc thuốc' : 'ID bệnh nhân, bác sĩ, chẩn đoán hoặc thuốc'}
-        defaultValue={initialSearch} allowClear onSearch={setSearch} />
+      {role === 'doctor' && <PatientSearch source="doctor/patients/" initialSearch={initialSearch}
+        placeholder="ID, bệnh nhân, chẩn đoán hoặc thuốc" onSearch={setSearch} style={{ width: 360, maxWidth: '100%' }} />}
       <DatePicker aria-label="Lọc ngày hoặc năm khám" placeholder="Ngày hoặc năm khám"
         picker={period.mode} format={period.mode === 'year' ? 'YYYY' : 'DD/MM/YYYY'} value={period.value}
         onChange={(value) => setPeriod((current) => ({ ...current, value }))}

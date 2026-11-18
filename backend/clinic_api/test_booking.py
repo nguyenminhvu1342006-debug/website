@@ -114,6 +114,20 @@ class BookingWorkflowTests(TestCase):
         params['search'] = 'bn-doctor'
         self.assertEqual([item['id'] for item in self.client.get(url, params).data], [appointment.pk])
 
+    def test_doctor_suggestions_are_scoped_and_exclude_medical_details(self):
+        self.create_booking()
+        self.client.force_authenticate(self.doctor_user)
+        url = '/api/doctor/patients/'
+        results = self.client.get(url).data
+        self.assertEqual([patient['user_id'] for patient in results], [self.patient_user.pk])
+        self.assertNotIn('blood_type', results[0])
+        self.assertNotIn('allergies', results[0])
+        response = self.client.get(url, {'search': f'A{self.patient_user.pk:07d}'})
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(self.client.get(url, {'search': 'other_patient'}).data, [])
+        self.client.force_authenticate(self.other_user)
+        self.assertEqual(self.client.get(url).status_code, 403)
+
     def test_completed_slot_remains_occupied(self):
         appointment = self.create_booking()
         appointment.status = 'Completed'

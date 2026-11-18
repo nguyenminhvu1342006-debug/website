@@ -69,8 +69,7 @@ export default function ReceptionDashboard() {
     {profile.error && <Alert type="error" title={profile.error} action={<Button onClick={profile.reload}>Thử lại</Button>} />}
     {active === 'appointments' && <section className="panel"><h2>Lịch hẹn & Check-in</h2>
       <div className="toolbar"><DatePicker value={day} allowClear={false} onChange={setDay} />
-        <Input.Search aria-label="Tìm theo tên, tài khoản, số điện thoại hoặc ID"
-          placeholder="Tên, tài khoản, số điện thoại hoặc ID" allowClear onSearch={setSearch} />
+        <PatientSearch placeholder="Tên, tài khoản, số điện thoại hoặc ID" onSearch={setSearch} style={{ width: 360, maxWidth: '100%' }} />
         <Button onClick={appointments.reload}>Làm mới</Button></div>
       {appointments.error ? <Alert type="error" title={appointments.error} /> : <Table rowKey="id" loading={appointments.loading}
         dataSource={appointments.data || []} scroll={{ x: 850 }} columns={[
@@ -89,8 +88,7 @@ export default function ReceptionDashboard() {
     {(active === 'booking' || active === 'patients') && <>
       <section className="panel"><h2>{active === 'booking' ? 'Đặt lịch cho bệnh nhân' : 'Danh sách bệnh nhân'}</h2>
         {active === 'booking' && <p>Đặt lịch hộ bệnh nhân đã có tài khoản. Với bệnh nhân mới, vui lòng vào mục Đăng ký bệnh nhân trước.</p>}
-        {active === 'patients' && <div className="toolbar"><Input.Search key={active} aria-label="Tìm bệnh nhân theo ID, họ tên, tài khoản, số điện thoại hoặc địa chỉ"
-          placeholder="ID, tên, tài khoản, SĐT hoặc địa chỉ" onSearch={setSearch} allowClear />
+        {active === 'patients' && <div className="toolbar"><PatientSearch key={active} onSearch={setSearch} style={{ width: 360, maxWidth: '100%' }} />
           <Button type="primary" onClick={() => setRegistering(true)}>Đăng ký bệnh nhân mới</Button></div>}
         {patients.error && <Alert type="error" title={patients.error} action={<Button onClick={patients.reload}>Thử lại</Button>} />}
         {active === 'booking' ? <PatientSearch initialPatient={selectedPatient} onSelect={setSelectedPatient} />
