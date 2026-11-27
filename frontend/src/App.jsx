@@ -6,6 +6,7 @@ import './App.css';
 
 const HomePage = lazy(() => import('./pages/public/HomePage'));
 const LoginPage = lazy(() => import('./pages/public/LoginPage'));
+const SetPasswordPage = lazy(() => import('./pages/public/SetPasswordPage'));
 const UserDashboard = lazy(() => import('./pages/patient/UserDashboard'));
 const MyAppointment = lazy(() => import('./pages/patient/MyAppointment'));
 const DoctorDashboard = lazy(() => import('./pages/doctor/DoctorDashboard'));
@@ -20,6 +21,7 @@ function App() {
         <Route path="/reception" element={<ProtectedRoute allowedRoles={['receptionist', 'admin']}><ReceptionDashboard /></ProtectedRoute>} />
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/set-password" element={<SetPasswordPage />} />
         <Route
           path="/dashboard"
           element={

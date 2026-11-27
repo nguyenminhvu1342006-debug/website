@@ -3,8 +3,57 @@
 Website phòng khám với frontend React/Vite và backend Django REST Framework,
 đăng nhập bằng JWT, lưu dữ liệu trong MySQL.
 
-Chức năng đang có: đăng nhập, xem bác sĩ, đặt/hủy lịch khám, xem lịch hẹn và
-cập nhật hồ sơ bệnh nhân. Một số giao diện còn đang phát triển.
+Chức năng đang có: đăng nhập, xem bác sĩ, đặt/hủy lịch khám, xem lịch hẹn,
+cập nhật hồ sơ bệnh nhân và mời bệnh nhân thiết lập mật khẩu qua email.
+
+## Bệnh nhân tự thiết lập mật khẩu qua email
+
+Lễ tân vào **Patient Registration**, nhập email thay cho mật khẩu ban đầu.
+Email bắt buộc với tài khoản mới và không được trùng email đã sử dụng (không phân biệt hoa thường).
+Tài khoản mới chưa thể đăng nhập cho đến khi bệnh nhân thiết lập mật khẩu.
+Tài khoản cũ và các tài khoản mẫu giữ nguyên mật khẩu, không tự tạo lời mời.
+
+Sau khi cập nhật code, kích hoạt môi trường ảo và chạy `python manage.py migrate` trong `backend`.
+Khi chưa cấu hình SMTP, mặc định hệ thống dùng **console email backend**: không gửi email thật.
+Đăng ký bệnh nhân rồi xem terminal đang chạy Django, mở link `/set-password?invitation=...&token=...`
+được in trong phần nội dung email. Nhập mật khẩu mới, xác nhận rồi đăng nhập bằng tên đăng nhập đã tạo.
+Không chia sẻ link hoặc log chứa link: người có link có thể thiết lập mật khẩu tài khoản đó.
+
+Link có hiệu lực **24 giờ**, chỉ dùng một lần. Gửi lại lời mời vô hiệu link cũ;
+lễ tân phải chờ ít nhất **60 giây** giữa các lần gửi. Danh sách bệnh nhân có email,
+trạng thái thiết lập mật khẩu và nút **Gửi lại lời mời** cho tài khoản chưa hoàn tất.
+Đây là luồng thiết lập lần đầu; chưa phải chức năng quên mật khẩu cho tài khoản đang sử dụng.
+
+Để gửi email thật, bổ sung cấu hình dưới đây vào `.env` (xem mẫu trong `.env.example`):
+
+```dotenv
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=your-smtp-host
+EMAIL_PORT=587
+EMAIL_HOST_USER=your-smtp-user
+EMAIL_HOST_PASSWORD="your-smtp-secret"
+EMAIL_USE_TLS=True
+DEFAULT_FROM_EMAIL="Clinic <your-verified-sender@example.com>"
+FRONTEND_URL=http://localhost:5173
+```
+
+Dùng thông tin SMTP và địa chỉ người gửi đã được dịch vụ email cho phép. Khi deploy,
+đổi `FRONTEND_URL` thành địa chỉ HTTPS của frontend và khởi động lại Django sau khi sửa cấu hình.
+Giữ thông tin SMTP trong `.env`, không commit. Demo localhost chỉ mở được trên máy đang chạy frontend;
+để bệnh nhân mở bằng thiết bị khác, cần địa chỉ frontend họ truy cập được.
+
+Tài khoản và lời mời được lưu trước khi gửi email. Gửi lỗi không xóa tài khoản;
+lễ tân nhận cảnh báo và có thể gửi lại. Lời mời còn chờ do tiến trình bị dừng được lưu trong database.
+Có thể xử lý hàng đợi bằng các lệnh sau tại `backend`:
+
+```powershell
+python manage.py send_account_invitations
+python manage.py send_account_invitations --retry-failed
+```
+
+Khi deploy, lên lịch chạy lệnh đầu định kỳ để xử lý các yêu cầu còn chờ; lệnh thứ hai
+thử lại các lần gửi lỗi đã quá 60 giây. Lần gửi bị gián đoạn được thu hồi sau 5 phút.
+Database chỉ lưu bản băm token; email không chứa mật khẩu, bệnh án hoặc đơn thuốc.
 
 ## Cấu trúc giao diện frontend
 
@@ -301,6 +350,6 @@ Lệnh kiểm tra mỗi giây; dừng bằng Ctrl+C. Khi triển khai, quản l�
 
 Chuông thông báo có trên giao diện bệnh nhân, bác sĩ và lễ tân. Hệ thống lưu thông báo khi đặt lịch, đổi lịch, hủy lịch, check-in và hoàn tất khám. Khi đổi bác sĩ, bác sĩ cũ cũng nhận thông báo thay đổi. Nội dung thông báo không chứa chẩn đoán hay đơn thuốc.
 
-Mỗi tài khoản chỉ xem và đánh dấu đã đọc thông báo của mình. Danh sách hiển thị 50 thông báo gần nhất, tự cập nhật mỗi 30 giây khi tab đang hiển thị, khi quay lại cửa sổ và khi mở chuông. Đây là thông báo trong web; chưa có email hoặc push khi đóng trình duyệt. Các lịch hẹn cũ không tạo thông báo hồi tố.
+Mỗi tài khoản chỉ xem và đánh dấu đã đọc thông báo của mình. Danh sách hiển thị 50 thông báo gần nhất, tự cập nhật mỗi 30 giây khi tab đang hiển thị, khi quay lại cửa sổ và khi mở chuông. Các cập nhật lịch hẹn là thông báo trong web, chưa gửi qua email hoặc push khi đóng trình duyệt. Email thiết lập mật khẩu là luồng riêng. Các lịch hẹn cũ không tạo thông báo hồi tố.
 
 Sau khi cập nhật code, chạy `python manage.py migrate` trong thư mục `backend` với môi trường ảo đã kích hoạt để tạo bảng thông báo.

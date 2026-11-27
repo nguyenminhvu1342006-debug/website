@@ -174,15 +174,15 @@ class BookingWorkflowTests(TestCase):
     def test_reception_registration_and_booking(self):
         self.client.force_authenticate(self.reception)
         response = self.client.post('/api/reception/patients/', {
-            'username': 'new_patient', 'password': 'ClinicGuest!2026',
+            'username': 'new_patient', 'email': 'new_patient@example.com',
             'full_name': 'New Patient', 'phone': '0901234567',
         })
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertTrue(User.objects.get(username='new_patient').check_password('ClinicGuest!2026'))
+        self.assertFalse(User.objects.get(username='new_patient').has_usable_password())
         booking = self.client.post('/api/reception/appointments/', dict(self.payload, patient_user_id=response.data['user_id']))
         self.assertEqual(booking.status_code, 201, booking.data)
         self.assertEqual(self.client.post('/api/reception/patients/', {
-            'username': 'new_patient', 'password': 'ClinicGuest!2026', 'full_name': 'Duplicated',
+            'username': 'new_patient', 'email': 'new_patient@example.com', 'full_name': 'Duplicated',
         }).status_code, 400)
 
     def test_role_permissions(self):

@@ -2,6 +2,18 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
+class AccountInvitation(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='account_invitation')
+    email = models.EmailField(unique=True)
+    token_digest = models.CharField(max_length=64, blank=True)
+    expires_at = models.DateTimeField(null=True)
+    consumed_at = models.DateTimeField(null=True)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    attempted_at = models.DateTimeField(null=True)
+    delivery = models.CharField(max_length=10, default='pending', choices=[
+        ('pending', 'Pending'), ('sending', 'Sending'), ('sent', 'Sent'), ('failed', 'Failed')])
+
+
 class Notification(models.Model):
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     title = models.CharField(max_length=150)

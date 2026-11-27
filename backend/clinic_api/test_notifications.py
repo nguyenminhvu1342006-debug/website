@@ -51,12 +51,12 @@ class NotificationTests(TestCase):
 
     def test_registration_notifies_reception_only_on_success(self):
         self.client.force_authenticate(self.reception)
-        payload = {'username': 'registered_patient', 'password': 'ClinicGuest!2026', 'full_name': 'New Patient'}
+        payload = {'username': 'registered_patient', 'email': 'registered@example.com', 'full_name': 'New Patient'}
         response = self.client.post('/api/reception/patients/', payload)
         self.assertEqual(response.status_code, 201, response.data)
         notification = Notification.objects.get()
         self.assertEqual(notification.recipient, self.reception)
         self.assertIn(response.data['id'], notification.message)
-        self.assertNotIn(payload['password'], notification.message)
+        self.assertNotIn('token=', notification.message)
         self.assertEqual(self.client.post('/api/reception/patients/', payload).status_code, 400)
         self.assertEqual(Notification.objects.count(), 1)

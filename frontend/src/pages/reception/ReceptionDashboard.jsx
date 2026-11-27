@@ -58,12 +58,23 @@ export default function ReceptionDashboard() {
       const { data } = await api.post('reception/patients/', {
         ...values, date_of_birth: values.date_of_birth?.format('YYYY-MM-DD') || null,
       });
-      message.success('Đăng ký bệnh nhân thành công.');
+      if (data.delivery === 'failed') message.warning('Đã tạo tài khoản nhưng gửi email thất bại. Vui lòng gửi lại lời mời.');
+      else message.success(data.email_demo ? 'Đăng ký thành công. Link thiết lập mật khẩu nằm trong terminal Django (demo).' : 'Đăng ký thành công. Đã gửi email thiết lập mật khẩu.');
       window.dispatchEvent(new Event('notifications-updated'));
       setSelectedPatient({ ...data, username: values.username }); setSearch(''); patients.reload();
       setRegistering(false); form.resetFields();
     } catch (error) { message.error(errorText(error)); }
     finally { setSaving(false); }
+  };
+  const resendInvitation = async (row) => {
+    setBusy(row.user_id);
+    try {
+      const { data } = await api.post(`reception/patients/${row.user_id}/invitation/`);
+      if (data.delivery === 'failed') message.warning('Chưa gửi được email. Vui lòng kiểm tra cấu hình và thử lại.');
+      else message.success(data.email_demo ? 'Link lời mời mới nằm trong terminal Django (demo).' : 'Đã gửi email lời mời.');
+      patients.reload();
+    } catch (error) { message.error(errorText(error)); }
+    finally { setBusy(null); }
   };
   return <Workspace menu={menu} active={active} onChange={(key) => { setActive(key); setSearch(''); }}
     profile={profile.data} subtitle="Reception Workspace" logoutLabel="Log Out">
@@ -90,13 +101,17 @@ export default function ReceptionDashboard() {
       <section className="panel"><h2>{active === 'booking' ? 'Đặt lịch cho bệnh nhân' : 'Danh sách bệnh nhân'}</h2>
         {active === 'booking' && <p>Đặt lịch hộ bệnh nhân đã có tài khoản. Với bệnh nhân mới, vui lòng vào mục Đăng ký bệnh nhân trước.</p>}
         {active === 'patients' && <div className="toolbar"><PatientSearch key={active} onSearch={setSearch} style={{ width: 360, maxWidth: '100%' }} />
-          <Button type="primary" onClick={() => setRegistering(true)}>Đăng ký bệnh nhân mới</Button></div>}
+          <Button type="primary" onClick={() => setRegistering(true)}>Đăng ký bệnh nhân mới</Button>
+          <Button onClick={patients.reload}>Làm mới</Button></div>}
         {patients.error && <Alert type="error" title={patients.error} action={<Button onClick={patients.reload}>Thử lại</Button>} />}
         {active === 'booking' ? <PatientSearch initialPatient={selectedPatient} onSelect={setSelectedPatient} />
           : <Table rowKey="user_id" loading={patients.loading} dataSource={patients.data || []} scroll={{ x: 650 }} columns={[
             { title: 'Mã bệnh nhân', dataIndex: 'id' }, { title: 'Họ tên', dataIndex: 'full_name' },
             { title: 'Tài khoản', dataIndex: 'username' }, { title: 'Số điện thoại', dataIndex: 'phone' },
-            { title: 'Thao tác', render: (_, row) => <Button onClick={() => { setSelectedPatient(row); setSearch(''); setActive('booking'); }}>Đặt lịch</Button> },
+            { title: 'Email', dataIndex: 'email' },
+            { title: 'Thiết lập mật khẩu', dataIndex: 'invitation_status', render: (value) => ({ completed: 'Đã thiết lập mật khẩu', sent: 'Chưa thiết lập mật khẩu', pending: 'Đang chờ gửi', sending: 'Đang gửi email', failed: 'Gửi email thất bại', unavailable: 'Chưa có lời mời' })[value] || value },
+            { title: 'Thao tác', render: (_, row) => <div className="actions"><Button onClick={() => { setSelectedPatient(row); setSearch(''); setActive('booking'); }}>Đặt lịch</Button>
+              {['pending', 'sent', 'failed'].includes(row.invitation_status) && <Button loading={busy === row.user_id} onClick={() => resendInvitation(row)}>Gửi lại lời mời</Button>}</div> },
           ]} />}
       </section>
       {active === 'booking' && patientId && <BookAppointment key={patientId} patientUserId={patientId}
@@ -107,7 +122,8 @@ export default function ReceptionDashboard() {
       <Form form={form} layout="vertical" onFinish={register}>
         <Form.Item name="full_name" label="Họ và tên" rules={[{ required: true, whitespace: true }]}><Input maxLength={100} /></Form.Item>
         <Form.Item name="username" label="Tên đăng nhập" rules={[{ required: true }]}><Input maxLength={150} autoComplete="off" /></Form.Item>
-        <Form.Item name="password" label="Mật khẩu ban đầu" rules={[{ required: true, min: 8 }]}><Input.Password autoComplete="new-password" /></Form.Item>
+        <Form.Item name="email" label="Email bệnh nhân" rules={[{ required: true }, { type: 'email' }]}><Input type="email" maxLength={254} autoComplete="email" /></Form.Item>
+        <p>Bệnh nhân sẽ nhận link để tự thiết lập mật khẩu, có hiệu lực 24 giờ.</p>
         <Form.Item name="date_of_birth" label="Ngày sinh"><DatePicker disabledDate={(value) => value.isAfter(dayjs(), 'day')} /></Form.Item>
         <Form.Item name="phone" label="Số điện thoại"><Input maxLength={20} /></Form.Item>
         <Form.Item name="address" label="Địa chỉ"><Input maxLength={255} /></Form.Item>

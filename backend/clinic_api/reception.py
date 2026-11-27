@@ -1,8 +1,8 @@
 """Reception desk: patient registration, booking and check-in."""
 import re
+from django.conf import settings
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -15,7 +15,8 @@ from rest_framework.views import APIView
 from .booking import BookingSerializer, book
 from .notifications import notify_appointment
 from .appointment_expiry import overdue_filter
-from .models import Appointment, Patient, Notification
+from .models import Appointment, Patient, Notification, AccountInvitation
+from .invitations import deliver_invitation
 from .permissions import IsDoctor, IsReceptionist
 from .serializers import DoctorAppointmentSerializer, PatientProfileSerializer
 
@@ -60,7 +61,7 @@ class DoctorPatientSuggestionsView(APIView):
 
 class RegistrationSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
-    password = serializers.CharField(write_only=True, trim_whitespace=False)
+    email = serializers.EmailField(max_length=254)
     full_name = serializers.CharField(max_length=100)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
@@ -75,13 +76,15 @@ class RegistrationSerializer(serializers.Serializer):
             raise serializers.ValidationError('Tên đăng nhập đã tồn tại.')
         return value
 
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if User.objects.filter(email__iexact=value).exists() or AccountInvitation.objects.filter(email=value).exists():
+            raise serializers.ValidationError('Email đã được sử dụng.')
+        return value
+
     def validate(self, attrs):
         if attrs.get('date_of_birth') and attrs['date_of_birth'] > timezone.localdate():
             raise serializers.ValidationError({'date_of_birth': 'Ngày sinh không được ở tương lai.'})
-        try:
-            validate_password(attrs['password'], User(username=attrs['username']))
-        except DjangoValidationError as error:
-            raise serializers.ValidationError({'password': error.messages})
         return attrs
 
 
@@ -89,36 +92,41 @@ class ReceptionPatientsView(APIView):
     permission_classes = [IsReceptionist]
 
     def get(self, request):
-        patients = Patient.objects.select_related('user').filter(user__is_active=True)
+        patients = Patient.objects.select_related('user', 'user__account_invitation').filter(user__is_active=True)
         search = request.query_params.get('search', '').strip()
         patients = filter_patient_search(patients, search)
         return Response([dict(PatientProfileSerializer(patient).data, user_id=patient.user_id,
-                              username=patient.user.username) for patient in patients.order_by('full_name')[:100]])
+                              username=patient.user.username, email=patient.user.email,
+                              invitation_status=('completed' if patient.user.has_usable_password() else
+                                  getattr(getattr(patient.user, 'account_invitation', None), 'delivery', 'unavailable'))) for patient in patients.order_by('full_name')[:100]])
 
-    @transaction.atomic
     def post(self, request):
-        serializer = RegistrationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data.copy()
-        username = data.pop('username')
-        password = data.pop('password')
-        # Serialize username creation against concurrent registration requests.
-        User.objects.select_for_update().get(pk=request.user.pk)
-        if User.objects.filter(username=username).exists():
-            raise ValidationError({'username': 'Tên đăng nhập đã tồn tại.'})
-        try:
-            with transaction.atomic():
-                user = User.objects.create_user(username=username, password=password)
-        except IntegrityError:
-            raise ValidationError({'username': 'Tên đăng nhập đã tồn tại.'})
-        patient = Patient.objects.create(user=user, **data)
-        profile = PatientProfileSerializer(patient).data
-        Notification.objects.create(
-            recipient=request.user,
-            title='Đăng ký bệnh nhân thành công',
-            message=f"Đã tạo tài khoản cho {patient.full_name} · ID: {profile['id']} · Tên đăng nhập: {user.username}",
-        )
-        return Response(dict(profile, user_id=user.pk), status=201)
+        with transaction.atomic():
+            serializer = RegistrationSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data.copy()
+            username = data.pop('username')
+            email = data.pop('email')
+            # Serialize username creation against concurrent registration requests.
+            User.objects.select_for_update().get(pk=request.user.pk)
+            if User.objects.filter(username=username).exists():
+                raise ValidationError({'username': 'Tên đăng nhập đã tồn tại.'})
+            try:
+                with transaction.atomic():
+                    user = User.objects.create_user(username=username, email=email, password=None)
+                    invitation = AccountInvitation.objects.create(user=user, email=email)
+            except IntegrityError:
+                raise ValidationError({'detail': 'Tên đăng nhập hoặc email đã tồn tại.'})
+            patient = Patient.objects.create(user=user, **data)
+            profile = PatientProfileSerializer(patient).data
+            Notification.objects.create(
+                recipient=request.user,
+                title='Đăng ký bệnh nhân thành công',
+                message=f"Đã tạo tài khoản cho {patient.full_name} · ID: {profile['id']} · Tên đăng nhập: {user.username}",
+            )
+        delivery = deliver_invitation(invitation.pk)
+        return Response(dict(profile, user_id=user.pk, email=email, delivery=delivery,
+                             email_demo=settings.EMAIL_BACKEND.endswith('console.EmailBackend')), status=201)
 
 
 class ReceptionAppointmentsView(APIView):

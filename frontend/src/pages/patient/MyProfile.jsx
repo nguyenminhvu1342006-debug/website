@@ -68,6 +68,10 @@ const MyProfile = ({ onProfileUpdated }) => {
 
         {/* Các trường thông tin (Grid 2 cột) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div style={{ gridColumn: 'span 2' }}>
+            <label htmlFor="patient-email" style={{ display: 'block', color: '#888', marginBottom: 8 }}>Email</label>
+            <Input id="patient-email" value={profile.email || ''} placeholder="Chưa bổ sung email" disabled />
+          </div>
           
           {/* ID (Disabled - Không cho chỉnh sửa) */}
           <div style={{ gridColumn: 'span 2' }}>
