@@ -14,7 +14,7 @@ const menu = [
   { key: 'patients', label: 'Patient Registration', icon: <TeamOutlined /> },
   { key: 'profile', label: 'My Profile', icon: <UserOutlined /> },
 ];
-const statusNames = { Confirmed: 'Chưa check-in', 'Checked-in': 'Chờ khám', Completed: 'Đã khám', Cancelled: 'Đã hủy' };
+const statusNames = { Confirmed: 'Chưa check-in', 'Checked-in': 'Chờ khám', Completed: 'Đã khám', Cancelled: 'Đã hủy', 'No-show': 'Không đến khám' };
 
 function ReceptionProfile({ profile, onSaved }) {
   const [saving, setSaving] = useState(false);
@@ -58,7 +58,8 @@ export default function ReceptionDashboard() {
       const { data } = await api.post('reception/patients/', {
         ...values, date_of_birth: values.date_of_birth?.format('YYYY-MM-DD') || null,
       });
-      message.success('Đã tạo tài khoản bệnh nhân.');
+      message.success('Đăng ký bệnh nhân thành công.');
+      window.dispatchEvent(new Event('notifications-updated'));
       setSelectedPatient({ ...data, username: values.username }); setSearch(''); patients.reload();
       setRegistering(false); form.resetFields();
     } catch (error) { message.error(errorText(error)); }

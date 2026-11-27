@@ -16,31 +16,25 @@ const Doctors = ({ onSelectDoctorForBooking }) => {
   const primaryTeal = '#4cb4b3';
   const darkText = '#333333';
 
-  // Hàm chuẩn hóa chuỗi: viết thường, bỏ tiền tố "Dr.", bỏ khoảng trắng thừa
-  const normalizeStr = (str) => {
-    if (!str) return '';
-    return str
-      .toLowerCase()
-      .replace(/^dr\.\s*/, '') // Xóa tiền tố "Dr. " ở đầu
-      .replace(/^dr\s*/, '')   // Xóa tiền tố "Dr " ở đầu
-      .trim();
-  };
+  const normalizeStr = (value = '') => value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0111\u0110]/g, 'd')
+    .toLowerCase()
+    .replace(/^dr\.?\s+/, '')
+    .trim()
+    .replace(/\s+/g, ' ');
 
-  const filteredDoctors = doctors.filter((doc) => {
-    const docName = doc.name || doc.full_name || '';
-    const docSpecialty = doc.specialty || '';
-
-    // Chuẩn hóa tên bác sĩ và từ khóa người dùng nhập vào để so sánh
-    const normalizedDocName = normalizeStr(docName);
-    const normalizedSearch = normalizeStr(searchTerm);
-
-    const matchesName = normalizedDocName.includes(normalizedSearch);
-    const matchesSpecialty = selectedSpecialty === 'All' || docSpecialty === selectedSpecialty;
-    
+  const specialtyOptions = [...new Set(doctors.map((doctor) => doctor.specialty).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'vi'))
+    .map((specialty) => ({ value: specialty, label: specialty }));
+  const normalizedSearch = normalizeStr(searchTerm);
+  const filteredDoctors = doctors.filter((doctor) => {
+    const matchesName = normalizeStr(doctor.name || doctor.full_name).includes(normalizedSearch);
+    const matchesSpecialty = selectedSpecialty === 'All' || doctor.specialty === selectedSpecialty;
     return matchesName && matchesSpecialty;
   });
 
-  // Xử lý khi bấm nút "Book Appointment": Lưu thông tin bác sĩ và chuyển tab sang Book Appointment
   const handleBookClick = (doctor) => {
 
     if (onSelectDoctorForBooking) {
@@ -58,25 +52,22 @@ const Doctors = ({ onSelectDoctorForBooking }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', width: '100%' }}>
       
       {/* Thanh tìm kiếm và bộ lọc chuyên khoa */}
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
         <Input 
           prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />} 
-          placeholder="Search doctor..." 
+          placeholder="Search doctor..."
+          aria-label="Search doctor"
+          allowClear
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           style={{ flex: 1, borderRadius: '20px', backgroundColor: 'white', padding: '10px 20px', border: '1px solid #eaeaea' }} 
         />
         <Select
-          defaultValue="All Specialties"
+          value={selectedSpecialty}
+          aria-label="Filter by specialty"
           style={{ width: '200px', height: '42px' }}
           onChange={(value) => setSelectedSpecialty(value)}
-          options={[
-            { value: 'All', label: 'All Specialties' },
-            { value: 'Cardiologist', label: 'Cardiologist' },
-            { value: 'Neurologist', label: 'Neurologist' },
-            { value: 'Pediatrician', label: 'Pediatrician' },
-            { value: 'Oncologist', label: 'Oncologist' },
-          ]}
+          options={[{ value: 'All', label: 'All Specialties' }, ...specialtyOptions]}
         />
       </div>
 

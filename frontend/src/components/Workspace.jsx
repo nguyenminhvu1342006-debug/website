@@ -1,3 +1,4 @@
+import NotificationBell from './NotificationBell';
 import { Avatar, Button } from 'antd';
 import { LogoutOutlined, MedicineBoxOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -19,8 +20,8 @@ export default function Workspace({ menu, active, onChange, profile, subtitle, l
     </aside>
     <div className="workspace-main">
       <header className="workspace-header"><h1>Xin chào{profile?.full_name ? `, ${profile.full_name}` : ''}!</h1>
-        <Avatar icon={!profile?.avatar_initials ? <UserOutlined /> : undefined}
-          style={{ background: '#e6f4f4', color: '#4cb4b3' }}>{profile?.avatar_initials}</Avatar>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}><NotificationBell /><Avatar icon={!profile?.avatar_initials ? <UserOutlined /> : undefined}
+          style={{ background: '#e6f4f4', color: '#4cb4b3' }}>{profile?.avatar_initials}</Avatar></div>
       </header>
       <main className="workspace-content">{children}</main>
     </div>
