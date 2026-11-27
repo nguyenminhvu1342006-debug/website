@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from datetime import date, time, timedelta
 from io import StringIO
 
@@ -206,6 +207,9 @@ class DoctorUseCaseTests(TestCase):
             self.assertEqual(res.status_code, 403, f'Expected 403 on {url}')
 
     def test_doctor_dashboard_and_schedule_isolation(self):
+        clock = patch('django.utils.timezone.now', return_value=timezone.localtime().replace(hour=8, minute=0, second=0, microsecond=0))
+        clock.start()
+        self.addCleanup(clock.stop)
         self._auth_as(self.doctor_user)
         dash = self.client.get('/api/doctor/dashboard/')
         self.assertEqual(dash.status_code, 200)

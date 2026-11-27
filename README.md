@@ -285,3 +285,22 @@ là tham chiếu thiết kế. Đợt sửa này hoàn thiện chức năng từ
 đối chiếu đầy đủ kích thước, typography, asset và biểu đồ với mockup chưa hoàn tất
 vì Figma MCP báo hết lượt đọc của gói Starter. Không coi bản hiện tại là bản khớp
 hoàn toàn thiết kế hoặc đã sẵn sàng triển khai production.
+# Thông báo trong ứng dụng
+
+## Lịch hẹn không đến khám
+
+Mỗi khung khám kéo dài 30 phút. Ví dụ lịch 14:00–14:30 vẫn cho phép check-in lúc 14:30; sau 14:30, lịch còn `Confirmed` chuyển thành `No-show` (Không đến khám). Lịch đã check-in, hoàn tất hoặc hủy được giữ nguyên. Bệnh nhân, bác sĩ phụ trách và lễ tân nhận thông báo một lần khi chuyển trạng thái.
+
+Backend kiểm tra lịch quá hạn khi có yêu cầu `/api/`. Để cập nhật liên tục ngay cả khi không có người truy cập, mở thêm terminal, kích hoạt môi trường ảo, vào thư mục `backend`, rồi chạy:
+
+```powershell
+python manage.py expire_appointments --watch
+```
+
+Lệnh kiểm tra mỗi giây; dừng bằng Ctrl+C. Khi triển khai, quản lý tiến trình này bằng dịch vụ chạy nền có tự khởi động lại, hoặc lên lịch chạy `python manage.py expire_appointments` định kỳ (độ trễ phụ thuộc lịch chạy). Cần chạy `python manage.py migrate` sau khi lấy code mới. Các lịch cũ chưa check-in đã hết khung giờ cũng được chuyển trạng thái khi bộ kiểm tra chạy.
+
+Chuông thông báo có trên giao diện bệnh nhân, bác sĩ và lễ tân. Hệ thống lưu thông báo khi đặt lịch, đổi lịch, hủy lịch, check-in và hoàn tất khám. Khi đổi bác sĩ, bác sĩ cũ cũng nhận thông báo thay đổi. Nội dung thông báo không chứa chẩn đoán hay đơn thuốc.
+
+Mỗi tài khoản chỉ xem và đánh dấu đã đọc thông báo của mình. Danh sách hiển thị 50 thông báo gần nhất, tự cập nhật mỗi 30 giây khi tab đang hiển thị, khi quay lại cửa sổ và khi mở chuông. Đây là thông báo trong web; chưa có email hoặc push khi đóng trình duyệt. Các lịch hẹn cũ không tạo thông báo hồi tố.
+
+Sau khi cập nhật code, chạy `python manage.py migrate` trong thư mục `backend` với môi trường ảo đã kích hoạt để tạo bảng thông báo.

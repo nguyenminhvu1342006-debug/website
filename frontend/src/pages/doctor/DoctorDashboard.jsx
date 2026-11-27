@@ -1,3 +1,4 @@
+import NotificationBell from '../../components/NotificationBell';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Avatar, Button, Empty, Spin, Tag, message } from 'antd';
@@ -33,6 +34,7 @@ const STATUS_TAGS = {
   Confirmed: { color: 'blue', label: 'Sắp tới' },
   Completed: { color: 'green', label: 'Đã khám' },
   Cancelled: { color: 'red', label: 'Đã hủy' },
+  'No-show': { color: 'orange', label: 'Không đến khám' },
 };
 
 const DoctorDashboard = () => {
@@ -220,6 +222,7 @@ const DoctorDashboard = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <NotificationBell />
             <Avatar
               size="large"
               icon={!doctorProfile?.avatar_initials ? <UserOutlined /> : undefined}

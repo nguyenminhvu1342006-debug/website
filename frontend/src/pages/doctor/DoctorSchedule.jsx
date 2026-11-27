@@ -28,6 +28,7 @@ const STATUS_META = {
   Confirmed: { color: 'blue', label: 'Sắp tới (Chưa check-in)' },
   Completed: { color: 'green', label: 'Đã khám xong' },
   Cancelled: { color: 'red', label: 'Đã hủy' },
+  'No-show': { color: 'orange', label: 'Không đến khám' },
 };
 
 const DoctorSchedule = ({ onViewPatientHistory, onViewRecordDetail }) => {
@@ -193,6 +194,7 @@ const DoctorSchedule = ({ onViewPatientHistory, onViewRecordDetail }) => {
               { value: 'Confirmed', label: 'Sắp tới (Confirmed)' },
               { value: 'Completed', label: 'Đã khám xong' },
               { value: 'Cancelled', label: 'Đã hủy' },
+              { value: 'No-show', label: 'Không đến khám' },
             ]}
           />
           <PatientSearch source="doctor/patients/" onSearch={setSearchTerm}

@@ -8,6 +8,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import NotFound, ValidationError
 
 from .models import Appointment, Doctor
+from .notifications import notify_appointment
 
 SLOTS = tuple(time(hour, minute) for hour in (9, 10, 11, 13, 14, 15) for minute in (0, 30))
 OCCUPIED = ('Confirmed', 'Checked-in', 'Completed')
@@ -58,10 +59,14 @@ def book(patient, data, appointment=None):
     if qs.filter(patient=patient).exists():
         raise ValidationError('Bệnh nhân đã có lịch vào giờ này.')
     if appointment:
+        previous_doctor_user_id = appointment.doctor.user_id
         appointment.doctor = doctor
         appointment.date = data['date']
         appointment.time = data['time']
         appointment.save(update_fields=['doctor', 'date', 'time'])
+        notify_appointment(appointment, 'rescheduled', previous_doctor_user_id)
         return appointment
-    return Appointment.objects.create(patient=patient, doctor=doctor,
+    appointment = Appointment.objects.create(patient=patient, doctor=doctor,
                                       date=data['date'], time=data['time'])
+    notify_appointment(appointment, 'booked')
+    return appointment

@@ -1,3 +1,5 @@
+from .appointment_expiry import overdue_filter
+from .notifications import notify_appointment
 from datetime import timedelta
 from django.contrib.auth import authenticate, get_user_model
 from django.db import transaction
@@ -66,7 +68,6 @@ class UpcomingAppointmentView(APIView):
 
     def get(self, request):
         today = timezone.localtime().date()
-        current_time = timezone.localtime().time()
         
         # Tìm các lịch hẹn từ hôm nay trở đi (dùng trường 'date' và 'time' mới)
         upcoming_appointments = Appointment.objects.filter(
@@ -76,7 +77,7 @@ class UpcomingAppointmentView(APIView):
         ).order_by('date', 'time')
 
         # Lọc thủ công để loại bỏ lịch cũ trong ngày hôm nay
-        upcoming = next((app for app in upcoming_appointments if app.status == 'Checked-in' or app.date > today or app.time > current_time), None)
+        upcoming = upcoming_appointments.exclude(Q(status='Confirmed') & overdue_filter()).first()
 
         if not upcoming:
             return Response({"message": "Không có lịch hẹn sắp tới"}, status=204)
@@ -104,10 +105,12 @@ class UpcomingAppointmentView(APIView):
 class CancelAppointmentView(APIView):
     permission_classes = [IsPatient]
 
+    @transaction.atomic
     def post(self, request, pk):
         changed = Appointment.objects.filter(pk=pk, patient=request.user, status='Confirmed').update(status='Cancelled')
         if not changed:
             raise NotFound('Không tìm thấy lịch được phép hủy; lịch có thể đã check-in.')
+        notify_appointment(Appointment.objects.select_related('doctor').get(pk=pk), 'cancelled')
         return Response({'message': 'Hủy lịch thành công.'})
 
 
@@ -156,7 +159,7 @@ class MyAppointmentsView(APIView):
         # Completed: 'Completed'
         # Canceled: 'Cancelled'
         
-        valid_statuses = {'Confirmed', 'Checked-in', 'Completed', 'Cancelled'}
+        valid_statuses = {'Confirmed', 'Checked-in', 'Completed', 'Cancelled', 'No-show'}
         if status_param not in valid_statuses:
             from rest_framework.exceptions import ValidationError
             raise ValidationError({'status': 'Trạng thái không hợp lệ.'})
@@ -324,7 +327,7 @@ class DoctorDashboardView(APIView):
             'doctor': DoctorProfileSerializer(doctor).data,
             'today_date': today.isoformat(),
             'stats': {
-                'today_total': today_qs.exclude(status='Cancelled').count(),
+                'today_total': today_qs.exclude(status__in=['Cancelled', 'No-show']).count(),
                 'today_waiting': today_qs.filter(status='Checked-in').count(),
                 'today_confirmed': today_qs.filter(status='Confirmed').count(),
                 'today_completed': today_qs.filter(status='Completed').count(),
@@ -432,6 +435,7 @@ class DoctorExamineView(APIView):
 
         appointment.status = 'Completed'
         appointment.save(update_fields=['status'])
+        notify_appointment(appointment, 'completed')
 
         return Response(MedicalRecordSerializer(record).data, status=status.HTTP_201_CREATED)
 

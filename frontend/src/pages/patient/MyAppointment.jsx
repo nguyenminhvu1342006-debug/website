@@ -39,7 +39,8 @@ const MyAppointment = () => {
         {[
           { key: 'Confirmed', label: 'Upcoming' },
           { key: 'Completed', label: 'Completed' },
-          { key: 'Cancelled', label: 'Canceled' }
+          { key: 'Cancelled', label: 'Canceled' },
+          { key: 'No-show', label: 'Không đến khám' }
         ].map((tab) => {
           const isActive = activeTab === tab.key;
           return (
@@ -124,6 +125,7 @@ const MyAppointment = () => {
                 {activeTab === 'Completed' && (
                   <div className="actions"><span style={{ color: '#52c41a' }}>Đã hoàn thành</span>{item.medical_record_id && <Button onClick={() => setRecordId(item.medical_record_id)}>Xem bệnh án</Button>}</div>
                 )}
+                {activeTab === 'No-show' && <Tag color="orange">Không đến khám</Tag>}
                 {activeTab === 'Cancelled' && (
                   <span style={{ color: '#ff4d4f', fontWeight: 'bold', fontSize: '14px' }}>Đã hủy</span>
                 )}

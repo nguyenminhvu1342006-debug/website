@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path
+from clinic_api.notifications import NotificationsView
 from rest_framework_simplejwt.views import TokenRefreshView
 from clinic_api.reception import (
     ReceptionPatientsView, ReceptionAppointmentsView,
@@ -26,6 +27,7 @@ from clinic_api.views import (
 )
 
 urlpatterns = [
+    path('api/notifications/', NotificationsView.as_view()),
     path('api/doctor/patients/', DoctorPatientSuggestionsView.as_view(), name='doctor_patient_suggestions'),
     path('api/my-records/', PatientMedicalRecordListView.as_view(), name='patient_records'),
     path('api/my-records/<int:pk>/', PatientMedicalRecordDetailView.as_view(), name='patient_record_detail'),

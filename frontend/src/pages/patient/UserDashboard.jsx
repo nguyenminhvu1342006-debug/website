@@ -1,3 +1,4 @@
+import NotificationBell from '../../components/NotificationBell';
 import { useState, useEffect } from 'react';
 import api from '../../api';
 import { logout } from '../../auth';
@@ -12,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   HomeOutlined, CalendarOutlined, ClockCircleOutlined, 
   FileTextOutlined, TeamOutlined, UserOutlined,
-  BellOutlined, LogoutOutlined
+  LogoutOutlined
 } from '@ant-design/icons';
 import { Button, Avatar, Spin, Popconfirm, message, Alert } from 'antd';
 
@@ -122,7 +123,7 @@ const UserDashboard = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 style={{ fontFamily: 'serif', margin: 0, color: darkText, fontSize: '26px' }}>Xin chào{profile?.full_name ? `, ${profile.full_name}` : ''}!</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-            <BellOutlined style={{ fontSize: '22px', color: '#666' }} />
+            <NotificationBell />
             <Avatar icon={!profile?.avatar_initials ? <UserOutlined /> : undefined} style={{ backgroundColor: '#e6f4f4', color: primaryTeal, fontWeight: 'bold' }} size="large">{profile?.avatar_initials}</Avatar>
           </div>
         </div>

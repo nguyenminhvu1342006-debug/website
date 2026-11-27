@@ -13,7 +13,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .booking import BookingSerializer, book
-from .models import Appointment, Patient
+from .notifications import notify_appointment
+from .appointment_expiry import overdue_filter
+from .models import Appointment, Patient, Notification
 from .permissions import IsDoctor, IsReceptionist
 from .serializers import DoctorAppointmentSerializer, PatientProfileSerializer
 
@@ -110,7 +112,13 @@ class ReceptionPatientsView(APIView):
         except IntegrityError:
             raise ValidationError({'username': 'Tên đăng nhập đã tồn tại.'})
         patient = Patient.objects.create(user=user, **data)
-        return Response(dict(PatientProfileSerializer(patient).data, user_id=user.pk), status=201)
+        profile = PatientProfileSerializer(patient).data
+        Notification.objects.create(
+            recipient=request.user,
+            title='Đăng ký bệnh nhân thành công',
+            message=f"Đã tạo tài khoản cho {patient.full_name} · ID: {profile['id']} · Tên đăng nhập: {user.username}",
+        )
+        return Response(dict(profile, user_id=user.pk), status=201)
 
 
 class ReceptionAppointmentsView(APIView):
@@ -153,10 +161,11 @@ class ReceptionAppointmentsView(APIView):
 class ReceptionAppointmentActionView(APIView):
     permission_classes = [IsReceptionist]
 
+    @transaction.atomic
     def post(self, request, pk):
         action = request.data.get('action')
         if action == 'check-in':
-            changed = Appointment.objects.filter(pk=pk, date=timezone.localdate(), status='Confirmed').update(status='Checked-in')
+            changed = Appointment.objects.filter(pk=pk, date=timezone.localdate(), status='Confirmed').exclude(overdue_filter()).update(status='Checked-in')
             if not changed:
                 raise ValidationError('Chỉ check-in lịch hôm nay, đang ở trạng thái Confirmed.')
         elif action == 'cancel':
@@ -172,6 +181,9 @@ class ReceptionAppointmentActionView(APIView):
             book(appointment.patient, serializer.validated_data, appointment=appointment)
         else:
             raise ValidationError({'action': 'Thao tác không hợp lệ.'})
+        if action in ('check-in', 'cancel'):
+            notify_appointment(Appointment.objects.select_related('doctor').get(pk=pk),
+                               'checked_in' if action == 'check-in' else 'cancelled')
         return Response({'message': 'Đã cập nhật lịch hẹn.'})
 
 

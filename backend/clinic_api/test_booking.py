@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from datetime import timedelta
 from io import StringIO
 
@@ -143,6 +144,9 @@ class BookingWorkflowTests(TestCase):
         self.create_booking()
 
     def test_check_in_only_today_and_only_receptionist(self):
+        clock = patch('django.utils.timezone.now', return_value=timezone.localtime().replace(hour=8, minute=0, second=0, microsecond=0))
+        clock.start()
+        self.addCleanup(clock.stop)
         appointment = self.create_booking()
         url = f'/api/reception/appointments/{appointment.pk}/'
         self.assertEqual(self.client.post(url, {'action': 'check-in'}).status_code, 403)
