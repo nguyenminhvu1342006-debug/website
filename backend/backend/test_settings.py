@@ -11,3 +11,5 @@ from .settings import *  # noqa: E402,F403
 DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': ':memory:'}}
 SECRET_KEY = 'isolated-test-secret-key-at-least-32-characters-long'
 PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
+
+EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'

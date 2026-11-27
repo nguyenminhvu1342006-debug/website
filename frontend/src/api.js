@@ -6,7 +6,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = sessionStorage.getItem('accessToken');
-  if (token && !['login/', 'token/refresh/'].includes(config.url) && !config.headers.Authorization) {
+  if (token && !['login/', 'token/refresh/', 'account/set-password/'].includes(config.url) && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -16,7 +16,7 @@ let refreshing;
 api.interceptors.response.use((response) => response, async (error) => {
   const config = error.config;
   if (error.response?.status !== 401 || !config || config._retried
-      || ['login/', 'token/refresh/'].includes(config.url)) return Promise.reject(error);
+      || ['login/', 'token/refresh/', 'account/set-password/'].includes(config.url)) return Promise.reject(error);
   config._retried = true;
   const refresh = sessionStorage.getItem('refreshToken');
   if (refresh) {

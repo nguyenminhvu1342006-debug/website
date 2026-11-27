@@ -35,6 +35,7 @@ def _get_patient_info(user):
 
 
 class PatientProfileSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source='user.email', read_only=True)
     id = serializers.SerializerMethodField()
     allergies = serializers.CharField(source='known_allergies', required=False, allow_blank=True, max_length=255)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
@@ -43,7 +44,7 @@ class PatientProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
         fields = (
-            'id', 'full_name', 'date_of_birth', 'phone', 'address',
+            'id', 'email', 'full_name', 'date_of_birth', 'phone', 'address',
             'blood_type', 'allergies', 'emergency_contact_name',
             'emergency_contact_phone', 'avatar_initials',
         )

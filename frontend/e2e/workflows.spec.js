@@ -103,7 +103,7 @@ test('reception can register a new patient through the form', async ({ page }) =
   await page.getByRole('button', { name: 'Đăng ký bệnh nhân mới' }).click();
   await page.getByLabel('Họ và tên', { exact: true }).fill('Browser Registered');
   await page.getByLabel('Tên đăng nhập', { exact: true }).fill('browser_registered');
-  await page.getByLabel('Mật khẩu ban đầu', { exact: true }).fill('ClinicGuest!2026');
+  await page.getByLabel('Email bệnh nhân', { exact: true }).fill('browser_registered@example.com');
   await page.getByRole('button', { name: 'Tạo tài khoản', exact: true }).click();
   await expect(page.getByRole('cell', { name: 'Browser Registered', exact: true })).toBeVisible();
   const patientCode = await page.getByRole('row').filter({ hasText: 'Browser Registered' }).getByRole('cell').first().innerText();
